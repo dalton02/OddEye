@@ -87,6 +87,9 @@ jobs:
         env:
           VERSION: ${{ steps.version.outputs.version }}
         run: |
+          # O runner do Windows não traz o NSIS, que o wails usa para gerar o instalador.
+          choco install nsis -y --no-progress
+          export PATH="$PATH:/c/Program Files (x86)/NSIS"
           wails build -platform ${{ matrix.platform }} -nsis -trimpath -ldflags "-X main.version=${VERSION}"
           mv build/bin/oddeye-amd64-installer.exe "build/bin/Oddeye-${VERSION}-windows-setup.exe"
           mv build/bin/oddeye.exe "build/bin/oddeye-${VERSION}-windows-portable.exe"
