@@ -154,7 +154,8 @@
   const chapters = $derived(blueprint ? chaptersOf(blueprint) : []);
   const chapter = $derived(chapters[Math.min(chapterIdx, chapters.length - 1)]);
   const flowSteps = $derived(blueprint && chapter?.kind === "flow" ? blueprint.flows[chapter.flow].steps.length : 0);
-  const reviewBody = $derived(picked.map((q) => "- " + q).join("\n"));
+  /* cada pergunta escolhida vira um parágrafo, sem marcador de lista */
+  const reviewBody = $derived(picked.join("\n\n"));
   /* a narração de arquitetura não cita arquivo, então nada nela vira link */
   const noLinks = (): null => null;
 
