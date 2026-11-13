@@ -1,0 +1,181 @@
+@font-face {
+  font-family: "Nunito";
+  font-style: normal;
+  font-weight: 400;
+  src: url("assets/fonts/nunito-v16-latin-regular.woff2") format("woff2");
+}
+
+:root {
+  --bg: #030407;
+  /* Superfícies em cinza-escuro quase opaco (faixa #121212 do Material) em vez de preto puro com
+     transparência: o céu animado não passa por trás do texto. Texto em off-white (~87% de branco),
+     porque branco puro sobre escuro "sangra" (halação), principalmente para quem tem astigmatismo. */
+  --panel: rgba(17, 18, 23, 0.95);
+  --panel-strong: rgba(15, 16, 21, 0.98);
+  --border: rgba(160, 170, 210, 0.13);
+  --text: #dfe1e7;
+  --muted: #9097ab;
+  --claude: #d97757;
+  --claude-soft: #f0a283;
+  --accent: #8ab4ff;
+  --green: #3fb950;
+  --yellow: #e3b341;
+  --red: #f85149;
+  --mono: "JetBrains Mono", "Fira Code", "Cascadia Code", "SF Mono", Consolas, Menlo, monospace;
+  --ui: "Nunito", "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--ui);
+  -webkit-font-smoothing: antialiased;
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(140, 160, 255, 0.18);
+  border-radius: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.btn {
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text);
+  padding: 8px 14px;
+  border-radius: 10px;
+  font-size: 13px;
+  transition: background 0.15s, border-color 0.15s, transform 0.1s;
+}
+.btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.09);
+  border-color: rgba(140, 160, 255, 0.35);
+}
+.btn:active:not(:disabled) {
+  transform: translateY(1px);
+}
+.btn.primary {
+  background: linear-gradient(135deg, #e0825f, #c9613f);
+  border-color: transparent;
+  color: #fff;
+  font-weight: 700;
+}
+.btn.primary:hover:not(:disabled) {
+  background: linear-gradient(135deg, #ea9070, #d46c49);
+}
+
+.sev {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 2px 8px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.sev.critical {
+  color: #ffb4ad;
+  background: rgba(248, 81, 73, 0.18);
+  border: 1px solid rgba(248, 81, 73, 0.45);
+}
+.sev.high {
+  color: #f6d68a;
+  background: rgba(227, 179, 65, 0.15);
+  border: 1px solid rgba(227, 179, 65, 0.4);
+}
+.sev.medium {
+  color: #a9c7ff;
+  background: rgba(138, 180, 255, 0.13);
+  border: 1px solid rgba(138, 180, 255, 0.35);
+}
+.sev.none {
+  color: var(--muted);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border);
+}
+
+/* Decorações do Monaco */
+.pg-line-added {
+  background: rgba(46, 160, 67, 0.09);
+}
+.pg-gutter-added {
+  background: #3fb950;
+  width: 3px !important;
+  margin-left: 4px;
+}
+.pg-line-attention {
+  background: rgba(227, 179, 65, 0.09);
+}
+.pg-line-flash {
+  background: rgba(217, 119, 87, 0.35);
+  transition: background 0.6s;
+}
+.pg-glyph-attention::before {
+  content: "!";
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  margin: 1px 0 0 2px;
+  border-radius: 50%;
+  background: #e3b341;
+  color: #1e1e1e;
+  font: 800 11px var(--ui);
+}
+.pg-glyph-comment::before {
+  content: "";
+  display: block;
+  width: 16px;
+  height: 14px;
+  margin: 2px 0 0 2px;
+  background: var(--claude);
+  border-radius: 4px 4px 4px 0;
+}
+.pg-glyph-add {
+  cursor: pointer;
+}
+.pg-glyph-add::before {
+  content: "+";
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 17px;
+  height: 17px;
+  margin: 1px 0 0 2px;
+  border-radius: 5px;
+  background: #2f81f7;
+  color: #fff;
+  font: 800 14px/1 var(--ui);
+}
+.pg-glyph-add.outside::before {
+  background: #6e7681;
+}

@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Oddeye
+GenericName=Revisor de pull requests
+Comment=Avisa de PRs novas e faz o tour guiado com o Claude Code
+Exec=oddeye %U
+Icon=oddeye
+Terminal=false
+Categories=Development;
+StartupWMClass=oddeye

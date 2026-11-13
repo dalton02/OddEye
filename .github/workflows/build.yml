@@ -1,0 +1,127 @@
+name: build
+
+on:
+  push:
+    branches: [main, master]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: oven-sh/setup-bun@v2
+      - run: go vet ./internal/...
+      - run: go test ./internal/...
+      - name: Frontend
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run check
+          npm test
+
+  build:
+    needs: test
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            platform: linux/amd64
+          - os: windows-latest
+            platform: windows/amd64
+          - os: macos-latest
+            platform: darwin/universal
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Versão
+        id: version
+        shell: bash
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+          else
+            echo "version=0.0.0" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Grava a versão no wails.json
+        shell: bash
+        run: |
+          node -e 'const f="wails.json",j=require("./"+f);j.info.productVersion=process.argv[1];require("fs").writeFileSync(f,JSON.stringify(j,null,2)+"\n")' "${{ steps.version.outputs.version }}"
+      - run: go install github.com/wailsapp/wails/v2/cmd/wails@v2.17.1
+
+      - name: Linux
+        if: runner.os == 'Linux'
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev
+          wails build -platform ${{ matrix.platform }} -tags webkit2_41 -trimpath
+          go install github.com/goreleaser/nfpm/v2/cmd/nfpm@v2.41.0
+          nfpm package --config build/linux/nfpm.yaml --packager deb --target "build/bin/oddeye_${VERSION}_amd64.deb"
+          nfpm package --config build/linux/nfpm.yaml --packager rpm --target "build/bin/oddeye-${VERSION}.x86_64.rpm"
+          build/linux/appimage.sh
+          mv build/bin/oddeye "build/bin/oddeye-${VERSION}-linux-amd64"
+
+      - name: Windows
+        if: runner.os == 'Windows'
+        shell: bash
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          wails build -platform ${{ matrix.platform }} -nsis -trimpath
+          mv build/bin/oddeye-amd64-installer.exe "build/bin/Oddeye-${VERSION}-windows-setup.exe"
+          mv build/bin/oddeye.exe "build/bin/oddeye-${VERSION}-windows-portable.exe"
+
+      - name: macOS
+        if: runner.os == 'macOS'
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          wails build -platform ${{ matrix.platform }} -trimpath
+          # Sem conta de desenvolvedor Apple: assinatura ad-hoc, senão o Apple Silicon recusa o binário universal.
+          codesign --force --deep --sign - "build/bin/Oddeye.app"
+          hdiutil create -volname "Oddeye" -srcfolder "build/bin/Oddeye.app" -ov -format UDZO "build/bin/Oddeye-${VERSION}-macos-universal.dmg"
+          rm -rf "build/bin/Oddeye.app"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: oddeye-${{ runner.os }}
+          path: build/bin/*
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Publica o release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cd dist
+          sha256sum * > SHA256SUMS.txt
+          gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --title "$GITHUB_REF_NAME" --generate-notes ./*

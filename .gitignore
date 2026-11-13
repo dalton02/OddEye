@@ -1,0 +1,16 @@
+build/bin
+build/AppDir
+build/appimagetool
+node_modules
+frontend/dist
+frontend/package.json.md5
+
+# músicas ficam na pasta do usuário (~/.config/oddeye/music), nunca no repositório
+*.mp3
+*.ogg
+*.oga
+*.opus
+*.flac
+*.m4a
+*.aac
+*.wav
