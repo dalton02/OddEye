@@ -5,6 +5,29 @@
   let open = $state(false);
 </script>
 
+{#if player.unavailable}
+  <div class="player off" class:open>
+    <button class="title" onclick={() => (open = !open)} title="Por que o som está desligado">
+      <svg class="mute" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9zM17 9l5 6M22 9l-5 6" /></svg>
+      <span class="name">Som indisponível</span>
+    </button>
+    {#if open}
+      <div class="panel" role="dialog" aria-label="Som indisponível">
+        <p class="hint">O sistema não tem o que o app precisa para tocar som. Falta:</p>
+        <ul class="missing">
+          {#each player.unavailable.missing as m (m)}<li>{m}</li>{/each}
+        </ul>
+        {#if player.unavailable.hint}
+          <p class="hint">Instale com o comando abaixo e abra o Oddeye de novo:</p>
+          <code class="cmd">{player.unavailable.hint}</code>
+        {:else}
+          <p class="hint">Instale o pacote de plugins "good" do GStreamer 1.0 da sua distribuição e abra o Oddeye de novo.</p>
+        {/if}
+        <p class="hint">Todo o resto do app funciona normalmente sem som.</p>
+      </div>
+    {/if}
+  </div>
+{:else}
 <div class="player" class:open>
   <button class="icon" onclick={() => player.prev()} title="Anterior" aria-label="Anterior">
     <svg viewBox="0 0 24 24"><path d="M6 5v14M19 5l-10 7 10 7z" /></svg>
@@ -60,8 +83,33 @@
     </div>
   {/if}
 </div>
+{/if}
 
 <style>
+  .mute {
+    width: 15px;
+    height: 15px;
+    flex-shrink: 0;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .missing {
+    margin: 4px 0 8px;
+    padding-left: 18px;
+    font-size: 12.5px;
+    line-height: 1.5;
+  }
+  .cmd {
+    display: block;
+    user-select: all;
+    white-space: normal;
+    word-break: break-word;
+    margin-bottom: 8px;
+  }
+
   .player {
     position: relative;
     display: inline-flex;

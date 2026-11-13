@@ -1,4 +1,4 @@
-import { api, type MusicLibrary } from "./api";
+import { api, type AudioStatus, type MusicLibrary } from "./api";
 import { AmbientMusic, playClick } from "./audio";
 
 const SETTINGS_KEY = "oddeye:player";
@@ -23,6 +23,8 @@ class Player {
   sfx = $state(true);
   enabled = $state(true);
   error = $state("");
+  /** preenchido quando o sistema não consegue tocar som: o player fica desligado e explica o que falta */
+  unavailable = $state<AudioStatus | null>(null);
 
   private audio: HTMLAudioElement | null = null;
   private objectURL: string | null = null;
@@ -54,6 +56,18 @@ class Player {
     }
     await this.reload();
 
+    /* Sem saída de som no sistema, nenhum áudio é criado: cada tentativa só geraria erro no log do webview.
+       Se a consulta falhar, segue com o som ligado, que é o comportamento de sempre. */
+    try {
+      const status = await api.audioStatus();
+      if (!status.available) {
+        this.unavailable = status;
+        return;
+      }
+    } catch {
+      /* binding indisponível: assume que há som */
+    }
+
     /* o webview só libera áudio depois de um gesto: a música começa no primeiro clique em qualquer lugar */
     const kick = (): void => {
       if (!this.started && this.enabled) void this.play();
@@ -81,6 +95,7 @@ class Player {
   }
 
   async play(): Promise<void> {
+    if (this.unavailable) return;
     this.started = true;
     this.enabled = true;
     this.stopAll();

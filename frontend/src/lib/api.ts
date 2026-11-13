@@ -172,6 +172,13 @@ export interface MusicLibrary {
   tracks: string[];
 }
 
+/** Se o webview consegue tocar som; no Linux depende dos plugins do GStreamer instalados. */
+export interface AudioStatus {
+  available: boolean;
+  missing: string[];
+  hint: string;
+}
+
 export type ReviewEvent = "COMMENT" | "APPROVE" | "REQUEST_CHANGES";
 
 export interface Deps {
@@ -281,6 +288,7 @@ export const api = {
   listMusic: (): Promise<MusicLibrary> => Go.ListMusic() as unknown as Promise<MusicLibrary>,
   chooseMusicFolder: (): Promise<MusicLibrary | null> => Go.ChooseMusicFolder() as unknown as Promise<MusicLibrary | null>,
   openMusicFolder: (): Promise<void> => Go.OpenMusicFolder(),
+  audioStatus: (): Promise<AudioStatus> => Go.AudioStatus() as unknown as Promise<AudioStatus>,
   musicURL: (track: string): string => "/music/" + encodeURIComponent(track),
   onProgress: (cb: (p: Progress) => void): (() => void) => EventsOn("analysis:progress", cb),
   getSettings: (): Promise<SettingsView> => Go.GetSettings() as unknown as Promise<SettingsView>,

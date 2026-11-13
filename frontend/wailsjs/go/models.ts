@@ -1,3 +1,24 @@
+export namespace audio {
+	
+	export class Status {
+	    available: boolean;
+	    missing: string[];
+	    hint: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new Status(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.available = source["available"];
+	        this.missing = source["missing"];
+	        this.hint = source["hint"];
+	    }
+	}
+
+}
+
 export namespace claude {
 	
 	export class Alternative {

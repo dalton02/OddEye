@@ -15,6 +15,7 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 
 	"oddeye/internal/appdir"
+	"oddeye/internal/audio"
 	"oddeye/internal/claude"
 	"oddeye/internal/config"
 	"oddeye/internal/gh"
@@ -75,6 +76,12 @@ func (a *App) ChooseMusicFolder() (*music.Library, error) {
 	}
 	lib := a.music.List()
 	return &lib, nil
+}
+
+// AudioStatus diz se o webview consegue tocar som. O frontend consulta antes de criar qualquer
+// áudio: no Linux sem os plugins do GStreamer, tentar tocar só gera erro no log.
+func (a *App) AudioStatus() audio.Status {
+	return audio.Check()
 }
 
 func (a *App) OpenMusicFolder() {

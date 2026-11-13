@@ -33,7 +33,7 @@ Baixe o instalador do seu sistema na página de [Releases](../../releases):
 | macOS (Intel e Apple Silicon) | `Oddeye-<versão>-macos-universal.dmg` | Veja abaixo como abrir um app sem assinatura da Apple. |
 | Debian, Ubuntu, Mint | `oddeye_<versão>_amd64.deb` | `sudo apt install ./oddeye_<versão>_amd64.deb` |
 | Fedora, openSUSE | `oddeye-<versão>.x86_64.rpm` | `sudo dnf install ./oddeye-<versão>.x86_64.rpm` |
-| Outras distros | `Oddeye-<versão>-x86_64.AppImage` | Precisa do `libwebkit2gtk-4.1` instalado no sistema. |
+| Outras distros | `Oddeye-<versão>-x86_64.AppImage` | Precisa do `libwebkit2gtk-4.1` instalado no sistema. Para ter som, veja a nota abaixo. |
 
 **macOS:** o app ainda não tem assinatura da Apple, então o Gatekeeper bloqueia a primeira abertura.
 Arraste o app para Aplicativos e rode uma vez no terminal:
@@ -41,6 +41,11 @@ Arraste o app para Aplicativos e rode uma vez no terminal:
 ```bash
 xattr -dr com.apple.quarantine "/Applications/Oddeye.app"
 ```
+
+**Som no Linux:** a trilha e os cliques saem pelo GStreamer, e o app precisa do pacote de plugins "good"
+dele. O `.deb` e o `.rpm` já instalam isso sozinhos. No AppImage (ou rodando o binário direto) instale pela
+sua distro, por exemplo `sudo pacman -S gst-plugins-good` no Arch ou `sudo dnf install gstreamer1-plugins-good`
+no Fedora. Se faltar, o app funciona normalmente sem som e o controle de música mostra o comando a rodar.
 
 **Linux com GNOME:** o GNOME não mostra ícones de bandeja sem a extensão
 [AppIndicator](https://extensions.gnome.org/extension/615/appindicator-support/) (Ubuntu já traz ela

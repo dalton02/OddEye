@@ -10,15 +10,23 @@ description: |
   Avisa na bandeja quando chega pull request nova nos repositórios que você escolheu
   e faz o tour guiado da PR com o Claude Code.
 license: MIT
+# O som do app (trilha, cliques) sai pelo GStreamer do WebKitGTK, que precisa do plugin "autodetect"
+# (autoaudiosink) e de uma saída de áudio. No Debian/Ubuntu o próprio libwebkit2gtk já os exige; no
+# Fedora e no openSUSE não, então o pacote os declara. Os nomes mudam entre as duas famílias de RPM,
+# por isso a dependência booleana "(a or b)".
 overrides:
   deb:
     depends:
       - libgtk-3-0
       - libwebkit2gtk-4.1-0
+      - gstreamer1.0-plugins-good
+      - gstreamer1.0-pulseaudio | gstreamer1.0-pipewire | gstreamer1.0-alsa
   rpm:
     depends:
       - gtk3
-      - webkit2gtk4.1
+      # Fedora chama o pacote de webkit2gtk4.1; o openSUSE, de libwebkit2gtk-4_1-0.
+      - (webkit2gtk4.1 or libwebkit2gtk-4_1-0)
+      - (gstreamer1-plugins-good or gstreamer-plugins-good)
 contents:
   - src: build/bin/oddeye
     dst: /usr/bin/oddeye
