@@ -42,20 +42,20 @@
       readOnly: true,
       domReadOnly: true,
       automaticLayout: true,
-      fontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'SF Mono', Consolas, Menlo, monospace",
-      fontSize: 13.5,
+      fontFamily: "'JetBrains Mono Variable', 'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'SF Mono', Consolas, Menlo, monospace",
+      fontSize: 13,
       fontLigatures: true,
-      lineHeight: 21,
+      lineHeight: 22,
       glyphMargin: true,
       lineNumbersMinChars: 4,
-      minimap: { enabled: true, renderCharacters: false, scale: 1 },
+      minimap: { enabled: false },
       scrollBeyondLastLine: false,
-      smoothScrolling: true,
-      cursorBlinking: "smooth",
-      renderLineHighlight: "all",
+      smoothScrolling: false,
+      cursorBlinking: "blink",
+      renderLineHighlight: "line",
       stickyScroll: { enabled: true },
       bracketPairColorization: { enabled: true },
-      guides: { bracketPairs: true, indentation: true },
+      guides: { bracketPairs: false, indentation: true },
       contextmenu: false,
       padding: { top: 12, bottom: 12 },
       scrollbar: { verticalScrollbarSize: 12, horizontalScrollbarSize: 12 },
@@ -66,6 +66,8 @@
     flashDecoration = editor.createDecorationsCollection();
 
     const ed = editor;
+    /* a fonte do editor é empacotada com o app e pode terminar de carregar depois da primeira medição */
+    void document.fonts.ready.then(() => monaco.editor.remeasureFonts());
     ed.onMouseMove((e) => {
       const t = e.target;
       const inGutter =
@@ -144,8 +146,7 @@
           glyphMarginClassName: "pg-glyph-attention",
           glyphMarginHoverMessage: { value: "**Claude:** " + a.note },
           hoverMessage: { value: "**Claude:** " + a.note },
-          overviewRuler: { color: "#e3b341", position: monaco.editor.OverviewRulerLane.Right },
-          minimap: { color: "#e3b341", position: monaco.editor.MinimapPosition.Inline }
+          overviewRuler: { color: "#e3b341", position: monaco.editor.OverviewRulerLane.Right }
         }
       });
     }
@@ -168,7 +169,7 @@
 
   export function revealLine(line: number): void {
     if (!editor) return;
-    editor.revealLineInCenter(line, monaco.editor.ScrollType.Smooth);
+    editor.revealLineInCenter(line, monaco.editor.ScrollType.Immediate);
     editor.setPosition({ lineNumber: line, column: 1 });
     flashDecoration?.set([{ range: new monaco.Range(line, 1, line, 1), options: { isWholeLine: true, className: "pg-line-flash" } }]);
     setTimeout(() => flashDecoration?.clear(), 1300);
@@ -318,22 +319,21 @@
 
 <div class="window" class:fullscreen>
   <div class="titlebar">
-    <span class="lights"><i></i><i></i><i></i></span>
     <span class="path" title={file.path}>{file.path}</span>
-    <span class="meta">
-      {#if file.readOnly}
-        <span class="tag removed">removido (versão da base)</span>
-      {:else if !file.inPR}
-        <span class="tag context">fora da PR (contexto)</span>
-      {:else}
-        <span class="tag">+{file.added.length} linhas novas</span>
-      {/if}
-      {#if !file.readOnly}
-        <button class="comment-btn" onclick={commentSelectionOrCursor} title="Atalho: C">
-          {selection && selection.end > selection.start ? `Comentar L${selection.start}–L${selection.end}` : `Comentar L${selection?.start ?? cursorLine}`}
-        </button>
-      {/if}
-    </span>
+    {#if file.readOnly}
+      <span class="tag del">removido (versão da base)</span>
+    {:else if !file.inPR}
+      <span class="tag">fora da PR (contexto)</span>
+    {:else}
+      <span class="tag add">+{file.added.length} linhas novas</span>
+    {/if}
+    {#if fullscreen}
+      <span class="keys">Alt + ← → troca de arquivo · C comenta · Esc sai</span>
+    {:else if !file.readOnly}
+      <button class="btn small" onclick={commentSelectionOrCursor} title="Atalho: C">
+        {selection && selection.end > selection.start ? `Comentar L${selection.start}–L${selection.end}` : `Comentar L${selection?.start ?? cursorLine}`}
+      </button>
+    {/if}
   </div>
   <div class="editor" bind:this={container}></div>
 </div>
@@ -344,89 +344,44 @@
     flex-direction: column;
     height: 100%;
     min-height: 0;
-    border-radius: 12px;
-    overflow: hidden;
-    border: 1px solid rgba(255, 255, 255, 0.07);
-    background: #16171b;
-    box-shadow:
-      0 0 0 1px rgba(0, 0, 0, 0.6),
-      0 30px 80px rgba(0, 0, 0, 0.65);
-    transition: border-color 0.15s;
-  }
-  .window:focus-within {
-    border-color: rgba(217, 119, 87, 0.55);
+    background: var(--bg);
   }
   .window.fullscreen {
     position: fixed;
     inset: 0;
-    z-index: 35;
-    border-radius: 0;
+    z-index: var(--z-fullscreen);
   }
   .titlebar {
     display: flex;
     align-items: center;
-    gap: 14px;
-    height: 38px;
-    padding: 0 12px;
-    background: #1d1e23;
-    border-bottom: 1px solid #0e0f12;
-    font-size: 12.5px;
+    gap: var(--sp-4);
+    height: 40px;
+    padding: 0 var(--sp-5);
+    border-bottom: 1px solid var(--border);
+    font-size: var(--fs-xs);
     flex-shrink: 0;
-  }
-  .lights {
-    display: flex;
-    gap: 7px;
-  }
-  .lights i {
-    width: 12px;
-    height: 12px;
-    border-radius: 50%;
-    background: #ff5f57;
-  }
-  .lights i:nth-child(2) {
-    background: #febc2e;
-  }
-  .lights i:nth-child(3) {
-    background: #28c840;
   }
   .path {
     flex: 1;
     min-width: 0;
     font-family: var(--mono);
-    color: #cccccc;
+    color: var(--muted);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
     direction: rtl;
     text-align: left;
   }
-  .meta {
-    display: flex;
-    align-items: center;
-    gap: 10px;
+  .fullscreen .path {
+    color: var(--text);
   }
   .tag {
-    color: #7ee787;
-    font-family: var(--mono);
-    font-size: 11.5px;
+    color: var(--muted);
+    white-space: nowrap;
   }
-  .tag.removed {
-    color: var(--red);
-  }
-  .tag.context {
-    color: #9cc0f5;
-  }
-  .comment-btn {
-    background: #3b74c9;
-    color: #f2f4f8;
-    border: none;
-    border-radius: 6px;
-    padding: 4px 10px;
-    font-size: 12px;
-    font-weight: 700;
-  }
-  .comment-btn:hover {
-    background: #4a82d6;
+  .keys {
+    color: var(--muted);
+    white-space: nowrap;
   }
   .editor {
     flex: 1;

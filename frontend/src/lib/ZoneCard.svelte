@@ -36,124 +36,100 @@
 
 <div class="card" class:edit={mode === "edit"}>
   <header>
-    <span class="who">
-      <span class="dot"></span>
-      {mode === "edit" ? "Novo comentário" : "Seu rascunho"}
-    </span>
+    <span class="who">{mode === "edit" ? "Novo comentário" : "Seu rascunho"}</span>
     <span class="range">{range}</span>
     {#if !inDiff}
       <span class="warn" title="O GitHub só aceita comentário de linha em trechos do diff">
         fora do diff: vai no corpo do review
       </span>
     {/if}
+    {#if mode === "view"}
+      <span class="actions">
+        <button class="link" onclick={() => onedit?.()}>Editar</button>
+        <button class="link quiet" onclick={() => onremove?.()}>Remover</button>
+      </span>
+    {/if}
   </header>
 
   {#if mode === "edit"}
     <textarea
+      class="field"
       bind:this={textarea}
       bind:value={text}
       onkeydown={onKey}
       rows="3"
-      placeholder="Escreva seu comentário (Markdown funciona). Ctrl+Enter salva, Esc cancela."
+      placeholder="Markdown funciona."
     ></textarea>
     <footer>
-      <button class="btn" onclick={() => oncancel?.()}>Cancelar</button>
-      <button class="btn primary" disabled={!text.trim()} onclick={() => onsave?.(text.trim())}>
+      <span class="keys">Ctrl + Enter salva · Esc cancela</span>
+      <button class="btn small" onclick={() => oncancel?.()}>Cancelar</button>
+      <button class="btn small primary" disabled={!text.trim()} onclick={() => onsave?.(text.trim())}>
         Salvar rascunho
       </button>
     </footer>
   {:else}
     <p class="body">{body}</p>
-    <footer>
-      <button class="link" onclick={() => onedit?.()}>Editar</button>
-      <button class="link danger" onclick={() => onremove?.()}>Remover</button>
-    </footer>
   {/if}
 </div>
 
 <style>
   .card {
-    max-width: 760px;
-    background: #1d1e23;
-    border: 1px solid #2c2e35;
-    border-left: 3px solid var(--claude);
-    border-radius: 8px;
-    padding: 10px 12px;
+    max-width: 720px;
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-2);
+    padding: var(--sp-3) var(--sp-4);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--r-sm);
+    background: var(--surface);
     font-family: var(--ui);
+    font-size: var(--fs-sm);
+    line-height: 1.5;
     color: var(--text);
-    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35);
   }
   .card.edit {
-    border-left-color: #2f81f7;
+    border-color: var(--primary);
   }
   header {
     display: flex;
-    align-items: center;
-    gap: 10px;
-    font-size: 12px;
-    margin-bottom: 8px;
+    align-items: baseline;
+    gap: var(--sp-3);
     flex-wrap: wrap;
   }
   .who {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-weight: 700;
-  }
-  .dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: var(--claude);
-  }
-  .edit .dot {
-    background: #2f81f7;
+    font-weight: 600;
   }
   .range {
     font-family: var(--mono);
+    font-size: var(--fs-xs);
     color: var(--muted);
   }
   .warn {
+    font-size: var(--fs-xs);
     color: var(--yellow);
-    background: rgba(227, 179, 65, 0.12);
-    border-radius: 6px;
-    padding: 1px 6px;
+  }
+  .actions {
+    display: flex;
+    gap: var(--sp-3);
+    margin-left: auto;
   }
   textarea {
-    width: 100%;
-    resize: vertical;
-    min-height: 70px;
-    background: #16171b;
-    color: var(--text);
-    border: 1px solid #2c2e35;
-    border-radius: 6px;
-    padding: 8px 10px;
-    font: 13px/1.5 var(--ui);
-    outline: none;
-  }
-  textarea:focus {
-    border-color: #2f81f7;
+    min-height: 72px;
   }
   .body {
     margin: 0;
     white-space: pre-wrap;
-    font-size: 13px;
-    line-height: 1.5;
   }
   footer {
     display: flex;
+    align-items: center;
     justify-content: flex-end;
-    gap: 8px;
-    margin-top: 8px;
+    flex-wrap: wrap;
+    gap: var(--sp-2);
   }
-  .link {
-    background: none;
-    border: none;
-    color: var(--accent);
-    font-size: 12px;
-    padding: 2px 4px;
-  }
-  .link.danger {
-    color: var(--red);
+  .keys {
+    margin-right: auto;
+    font-size: var(--fs-xs);
+    color: var(--muted);
   }
 </style>

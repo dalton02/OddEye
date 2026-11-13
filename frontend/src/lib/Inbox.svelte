@@ -63,38 +63,26 @@
 
 <style>
   .inbox {
+    display: flex;
+    flex-direction: column;
     width: 100%;
-    margin-top: 18px;
-    background: var(--panel);
-    border: 1px solid var(--border);
-    border-radius: 14px;
     text-align: left;
-    overflow: hidden;
   }
   .head {
     display: flex;
-    align-items: center;
-    gap: 14px;
-    padding: 10px 14px;
-    font-size: 13px;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: var(--sp-3);
+    padding-bottom: var(--sp-3);
+    border-bottom: 1px solid var(--border);
   }
   .title {
-    flex: 1;
-    font-weight: 700;
+    font-size: var(--fs-md);
+    font-weight: 600;
   }
   .status {
+    flex-grow: 1;
     color: var(--muted);
-    font-size: 12px;
-  }
-  .link {
-    background: none;
-    border: none;
-    color: var(--accent);
-    font-size: 12px;
-    padding: 0;
-  }
-  .link:disabled {
-    opacity: 0.5;
   }
   ul {
     list-style: none;
@@ -102,40 +90,49 @@
     padding: 0;
     max-height: 240px;
     overflow: auto;
-    border-top: 1px solid var(--border);
   }
-  li + li {
-    border-top: 1px solid var(--border);
+  li {
+    border-bottom: 1px solid var(--border);
   }
   li button {
     display: flex;
-    gap: 10px;
     align-items: baseline;
+    gap: var(--sp-4);
     width: 100%;
-    background: none;
+    padding: var(--sp-3) 0;
     border: none;
+    background: transparent;
     color: var(--text);
-    padding: 9px 14px;
+    font: inherit;
     text-align: left;
-    font-size: 13px;
+    transition: background var(--ease);
   }
   li button:hover {
-    background: rgba(255, 255, 255, 0.04);
+    background: var(--surface);
+  }
+  /* a lista rola e cortaria o contorno de foco desenhado para fora */
+  li button:focus-visible {
+    outline-offset: -2px;
   }
   .ref {
-    font: 12px var(--mono);
-    color: var(--claude-soft);
+    width: 132px;
     flex-shrink: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-family: var(--mono);
+    color: var(--muted);
   }
   .pr-title {
-    flex: 1;
+    flex-grow: 1;
+    min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
   .meta {
-    color: var(--muted);
-    font-size: 12px;
     flex-shrink: 0;
+    color: var(--muted);
+    white-space: nowrap;
   }
 </style>

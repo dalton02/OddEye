@@ -38,7 +38,7 @@ class Player {
   }
 
   get title(): string {
-    if (this.mode === "ambient") return "Trilha ambiente da galáxia";
+    if (this.mode === "ambient") return "Trilha ambiente";
     return (this.library.tracks[this.index] ?? "").replace(/\.[^.]+$/, "");
   }
 

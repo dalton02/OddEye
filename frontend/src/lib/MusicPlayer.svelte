@@ -8,7 +8,7 @@
 {#if player.unavailable}
   <div class="player off" class:open>
     <button class="title" onclick={() => (open = !open)} title="Por que o som está desligado">
-      <svg class="mute" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9zM17 9l5 6M22 9l-5 6" /></svg>
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9zM17 9l5 6M22 9l-5 6" /></svg>
       <span class="name">Som indisponível</span>
     </button>
     {#if open}
@@ -29,19 +29,6 @@
   </div>
 {:else}
 <div class="player" class:open>
-  <button class="icon" onclick={() => player.prev()} title="Anterior" aria-label="Anterior">
-    <svg viewBox="0 0 24 24"><path d="M6 5v14M19 5l-10 7 10 7z" /></svg>
-  </button>
-  <button class="icon main" onclick={() => player.toggle()} title={player.playing ? "Pausar" : "Tocar"} aria-label={player.playing ? "Pausar" : "Tocar"}>
-    {#if player.playing}
-      <svg viewBox="0 0 24 24"><path d="M8 5v14M16 5v14" /></svg>
-    {:else}
-      <svg viewBox="0 0 24 24"><path d="M7 5l12 7-12 7z" /></svg>
-    {/if}
-  </button>
-  <button class="icon" onclick={() => player.next()} title="Próxima" aria-label="Próxima">
-    <svg viewBox="0 0 24 24"><path d="M18 5v14M5 5l10 7-10 7z" /></svg>
-  </button>
   <button
     class="title"
     onclick={() => {
@@ -49,9 +36,22 @@
       if (open) void player.reload();
     }}
     title="Opções de som"
+    aria-expanded={open}
   >
-    {#if player.playing}<span class="eq"><i></i><i></i><i></i></span>{/if}
     <span class="name">{player.title}</span>
+  </button>
+  <button class="icon" onclick={() => player.prev()} title="Anterior" aria-label="Anterior">
+    <svg viewBox="0 0 14 14" aria-hidden="true"><path d="M11 2.5l-6 4.5 6 4.5zM3 2.5v9" /></svg>
+  </button>
+  <button class="icon" onclick={() => player.toggle()} title={player.playing ? "Pausar" : "Tocar"} aria-label={player.playing ? "Pausar" : "Tocar"}>
+    {#if player.playing}
+      <svg viewBox="0 0 14 14" aria-hidden="true"><path d="M4.5 2.5v9M9.5 2.5v9" /></svg>
+    {:else}
+      <svg viewBox="0 0 14 14" aria-hidden="true"><path d="M4 2.5l7 4.5-7 4.5z" /></svg>
+    {/if}
+  </button>
+  <button class="icon" onclick={() => player.next()} title="Próxima" aria-label="Próxima">
+    <svg viewBox="0 0 14 14" aria-hidden="true"><path d="M3 2.5l6 4.5-6 4.5zM11 2.5v9" /></svg>
   </button>
 
   {#if open}
@@ -75,9 +75,9 @@
         </p>
         <code title={player.library.dir}>{player.library.dir}</code>
         <div class="actions">
-          <button class="btn" onclick={() => api.openMusicFolder()}>Abrir pasta</button>
-          <button class="btn" onclick={() => player.chooseFolder()}>Escolher outra</button>
-          <button class="btn" onclick={() => player.reload()}>Recarregar</button>
+          <button class="link" onclick={() => api.openMusicFolder()}>Abrir pasta</button>
+          <button class="link" onclick={() => player.chooseFolder()}>Escolher outra</button>
+          <button class="link" onclick={() => player.reload()}>Recarregar</button>
         </div>
       </div>
     </div>
@@ -86,80 +86,63 @@
 {/if}
 
 <style>
-  .mute {
-    width: 15px;
-    height: 15px;
-    flex-shrink: 0;
-    fill: none;
-    stroke: currentColor;
-    stroke-width: 1.8;
-    stroke-linecap: round;
-    stroke-linejoin: round;
-  }
-  .missing {
-    margin: 4px 0 8px;
-    padding-left: 18px;
-    font-size: 12.5px;
-    line-height: 1.5;
-  }
-  .cmd {
-    display: block;
-    user-select: all;
-    white-space: normal;
-    word-break: break-word;
-    margin-bottom: 8px;
-  }
-
   .player {
     position: relative;
     display: inline-flex;
     align-items: center;
     gap: 2px;
-    height: 34px;
-    padding: 0 6px 0 4px;
-    border-radius: 999px;
-    background: var(--panel);
+    height: 36px;
+    padding: 0 4px 0 var(--sp-1);
     border: 1px solid var(--border);
+    border-radius: var(--r-sm);
+    background: var(--bg);
     max-width: 320px;
+    transition: border-color var(--ease);
+  }
+  .player.open {
+    border-color: var(--primary);
   }
   .icon {
     width: 28px;
     height: 28px;
-    border-radius: 50%;
+    flex-shrink: 0;
     border: none;
+    border-radius: 4px;
     background: none;
+    color: var(--text);
     display: grid;
     place-items: center;
     padding: 0;
+    transition: background var(--ease);
   }
   .icon:hover {
-    background: rgba(255, 255, 255, 0.07);
+    background: var(--selected);
   }
-  .icon svg {
+  svg {
     width: 14px;
     height: 14px;
-    fill: var(--text);
-    stroke: var(--text);
-    stroke-width: 2;
+    flex-shrink: 0;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.5;
     stroke-linecap: round;
     stroke-linejoin: round;
-  }
-  .icon.main svg {
-    width: 16px;
-    height: 16px;
   }
   .title {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--sp-2);
     min-width: 0;
-    background: none;
+    height: 28px;
+    padding: 0 var(--sp-2);
     border: none;
+    background: none;
     color: var(--muted);
-    font-size: 12px;
-    padding: 0 6px;
+    font-size: var(--fs-sm);
+    transition: color var(--ease);
   }
-  .title:hover {
+  .title:hover,
+  .open .title {
     color: var(--text);
   }
   .name {
@@ -168,48 +151,21 @@
     white-space: nowrap;
     max-width: 180px;
   }
-  .eq {
-    display: inline-flex;
-    gap: 2px;
-    align-items: flex-end;
-    height: 12px;
-  }
-  .eq i {
-    width: 3px;
-    background: var(--claude-soft);
-    border-radius: 1px;
-    animation: eq 1.1s ease-in-out infinite;
-  }
-  .eq i:nth-child(2) {
-    animation-delay: 0.25s;
-  }
-  .eq i:nth-child(3) {
-    animation-delay: 0.5s;
-  }
-  @keyframes eq {
-    0%,
-    100% {
-      height: 3px;
-    }
-    50% {
-      height: 12px;
-    }
-  }
   .panel {
     position: absolute;
     bottom: calc(100% + 8px);
     right: 0;
-    z-index: 30;
+    z-index: var(--z-popover);
     width: 340px;
-    background: var(--panel-strong);
-    border: 1px solid var(--border);
-    border-radius: 14px;
-    padding: 14px;
-    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
     display: flex;
     flex-direction: column;
-    gap: 10px;
-    font-size: 13px;
+    gap: var(--sp-4);
+    padding: var(--sp-4);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--r-md);
+    background: var(--surface);
+    box-shadow: var(--shadow);
+    font-size: var(--fs-sm);
   }
   :global(.home-player) .panel {
     bottom: auto;
@@ -218,46 +174,46 @@
   .row {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: var(--sp-3);
   }
   .row input[type="range"] {
     flex: 1;
-    accent-color: var(--claude);
-  }
-  .check input {
-    accent-color: var(--claude);
   }
   .err {
     margin: 0;
-    color: #ffb4ad;
-    font-size: 12px;
-    line-height: 1.5;
+    color: var(--red);
+  }
+  .lib {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-2);
   }
   .hint {
-    margin: 0 0 6px;
+    margin: 0;
     color: var(--muted);
-    font-size: 12px;
-    line-height: 1.5;
+  }
+  .missing {
+    margin: 0;
+    padding-left: 18px;
   }
   code {
     display: block;
-    font: 11.5px var(--mono);
-    background: rgba(0, 0, 0, 0.3);
-    border-radius: 6px;
-    padding: 6px 8px;
+    font: var(--fs-xs) var(--mono);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
     direction: rtl;
     text-align: left;
   }
+  code.cmd {
+    user-select: all;
+    white-space: normal;
+    word-break: break-word;
+    direction: ltr;
+  }
   .actions {
     display: flex;
-    gap: 6px;
-    margin-top: 8px;
-  }
-  .actions .btn {
-    padding: 5px 10px;
-    font-size: 12px;
+    flex-wrap: wrap;
+    gap: var(--sp-4);
   }
 </style>

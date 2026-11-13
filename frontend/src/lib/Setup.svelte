@@ -45,135 +45,200 @@
   }
 </script>
 
+{#snippet mark(done: boolean, n: number)}
+  {#if done}
+    <svg class="check" role="img" aria-label="Concluído" width="16" height="16" viewBox="0 0 16 16">
+      <path d="M3 8.5l3.2 3L13 4.5" />
+    </svg>
+  {:else}
+    <span class="num" aria-hidden="true">{n}</span>
+  {/if}
+{/snippet}
+
 <div class="setup">
-  <h3>Falta pouco para decolar</h3>
+  <h2>Falta pouco para começar</h2>
   <ol>
-    <li class:done={deps.ghInstalled}>
-      <strong>GitHub CLI</strong>
+    <li>
+      {@render mark(deps.ghInstalled, 1)}
       {#if deps.ghInstalled}
-        <span>instalado</span>
+        <div class="item done">
+          <strong>GitHub CLI</strong>
+          <span class="desc">instalado</span>
+        </div>
       {:else}
-        <span>
-          O app usa o <code>gh</code> para ler PRs e publicar reviews na sua conta.
-          <button class="link" onclick={() => api.openURL("https://cli.github.com")}>Instalar o gh</button>
-        </span>
-      {/if}
-    </li>
-    <li class:done={deps.ghInstalled && !needsAuth}>
-      <strong>Acesso ao GitHub</strong>
-      {#if !deps.ghInstalled}
-        <span>depois de instalar o gh</span>
-      {:else if !needsAuth}
-        <span>autorizado</span>
-      {:else}
-        <span>
-          {deps.ghError ? "Conecte sua conta" : `Faltam as permissões ${deps.missingScopes.join(", ")}`}:
-          ler PRs (inclusive privadas), comentar e aprovar. Tudo sai na sua conta, só quando você clicar em enviar.
-        </span>
-        {#if code}
-          <div class="code">
-            <span>Digite este código no GitHub:</span>
-            <button class="code-value" onclick={copy} title="Copiar">{code.code}</button>
-            <span class="muted">{copied ? "copiado!" : "clique para copiar"}</span>
-            <button class="link" onclick={() => code && api.openURL(code.url)}>Abrir a página do GitHub</button>
+        <div class="item">
+          <div class="text">
+            <strong>GitHub CLI</strong>
+            <span class="desc">O app usa o <code>gh</code> para ler PRs e publicar reviews na sua conta.</span>
+            <button class="link" onclick={() => api.openURL("https://cli.github.com")}>Instalar o gh</button>
           </div>
-        {/if}
-        <div class="actions">
-          <button class="btn primary" onclick={authorize} disabled={authorizing}>
-            {authorizing ? "Aguardando o GitHub..." : deps.ghError ? "Conectar ao GitHub" : "Autorizar permissões"}
-          </button>
-          {#if authorizing}<button class="btn" onclick={() => api.cancelAuthorize()}>Cancelar</button>{/if}
         </div>
       {/if}
     </li>
-    <li class:done={!deps.claudeError}>
-      <strong>Claude Code</strong>
-      {#if !deps.claudeError}
-        <span>instalado (usa o login que você já tem, sem chave de API)</span>
+    <li>
+      {@render mark(deps.ghInstalled && !needsAuth, 2)}
+      {#if !deps.ghInstalled}
+        <div class="item">
+          <div class="text">
+            <strong>Acesso ao GitHub</strong>
+            <span class="desc">depois de instalar o gh</span>
+          </div>
+        </div>
+      {:else if !needsAuth}
+        <div class="item done">
+          <strong>Acesso ao GitHub</strong>
+          <span class="desc">autorizado</span>
+        </div>
       {:else}
-        <span>
-          O revisor roda no seu Claude Code. Instale, abra <code>claude</code> no terminal uma vez e faça login.
-          <button class="link" onclick={() => api.openURL("https://claude.com/claude-code")}>Instalar o Claude Code</button>
-        </span>
+        <div class="item">
+          <div class="text">
+            <strong>Acesso ao GitHub</strong>
+            <span class="desc">
+              {deps.ghError ? "Conecte sua conta" : `Faltam as permissões ${deps.missingScopes.join(", ")}`}:
+              ler PRs (inclusive privadas), comentar e aprovar. Tudo sai na sua conta, só quando você clicar em enviar.
+            </span>
+          </div>
+          {#if code}
+            <div class="line">
+              <span>Digite este código no GitHub:</span>
+              <button class="code-value" onclick={copy} title="Copiar">{code.code}</button>
+              <span class="desc">{copied ? "copiado!" : "clique para copiar"}</span>
+            </div>
+          {/if}
+          <div class="line">
+            <button class="btn primary" onclick={authorize} disabled={authorizing}>
+              {authorizing ? "Aguardando o GitHub..." : deps.ghError ? "Conectar ao GitHub" : "Autorizar permissões"}
+            </button>
+            {#if code}
+              <button class="link" onclick={() => code && api.openURL(code.url)}>Abrir a página do GitHub</button>
+            {/if}
+            {#if authorizing}<button class="link quiet" onclick={() => api.cancelAuthorize()}>Cancelar</button>{/if}
+          </div>
+        </div>
+      {/if}
+    </li>
+    <li>
+      {@render mark(!deps.claudeError, 3)}
+      {#if !deps.claudeError}
+        <div class="item done">
+          <strong>Claude Code</strong>
+          <span class="desc">instalado (usa o login que você já tem, sem chave de API)</span>
+        </div>
+      {:else}
+        <div class="item">
+          <div class="text">
+            <strong>Claude Code</strong>
+            <span class="desc">
+              O revisor roda no seu Claude Code. Instale, abra <code>claude</code> no terminal uma vez e faça login.
+            </span>
+            <button class="link" onclick={() => api.openURL("https://claude.com/claude-code")}>Instalar o Claude Code</button>
+          </div>
+        </div>
       {/if}
     </li>
   </ol>
-  {#if error}<p class="error">{error}</p>{/if}
-  <button class="btn" onclick={onrecheck}>Verificar de novo</button>
+  {#if error}<p class="error-text">{error}</p>{/if}
+  <div class="foot">
+    <button class="btn" onclick={onrecheck}>Verificar de novo</button>
+  </div>
 </div>
 
 <style>
   .setup {
-    margin-top: 18px;
-    width: 100%;
-    padding: 16px 18px;
-    border-radius: 14px;
-    background: rgba(227, 179, 65, 0.07);
-    border: 1px solid rgba(227, 179, 65, 0.3);
-    text-align: left;
-    font-size: 13px;
-  }
-  h3 {
-    margin: 0 0 10px;
-    font-size: 14px;
-    color: #f6d68a;
-  }
-  ol {
-    margin: 0 0 12px;
-    padding-left: 20px;
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    width: 100%;
+    text-align: left;
   }
-  li span {
+  h2 {
+    margin: 0;
+    padding-bottom: var(--sp-3);
+    border-bottom: 1px solid var(--border);
+    font-size: var(--fs-md);
+    font-weight: 600;
+  }
+  ol {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  li {
+    display: flex;
+    gap: var(--sp-4);
+    padding: var(--sp-4) 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .check {
+    flex-shrink: 0;
+    margin-top: 2px;
+    fill: none;
+    stroke: var(--green);
+    stroke-width: 1.5;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .num {
+    flex-shrink: 0;
+    width: 16px;
     color: var(--muted);
-    margin-left: 6px;
+    text-align: center;
   }
-  li.done strong::after {
-    content: " ✓";
-    color: var(--green);
+  .item {
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+    gap: var(--sp-3);
+    min-width: 0;
+  }
+  .item.done {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: baseline;
+    column-gap: var(--sp-3);
+    row-gap: 0;
+  }
+  .text {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--sp-1);
+  }
+  strong {
+    font-weight: 600;
+  }
+  .desc {
+    color: var(--muted);
   }
   code {
-    font: 12px var(--mono);
-    color: var(--claude-soft);
+    font-family: var(--mono);
+    font-size: var(--fs-xs);
+    color: var(--text);
   }
-  .link {
-    background: none;
-    border: none;
-    color: var(--accent);
-    font-size: 13px;
-    padding: 0;
-    margin-left: 4px;
-  }
-  .code {
+  .line {
     display: flex;
     align-items: center;
     flex-wrap: wrap;
-    gap: 10px;
-    margin: 10px 0 0;
-  }
-  .code span {
-    margin: 0;
+    gap: var(--sp-4);
   }
   .code-value {
-    font: 700 20px var(--mono);
-    letter-spacing: 0.12em;
+    height: 44px;
+    padding: 0 var(--sp-4);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--r-sm);
+    background: var(--surface);
     color: var(--text);
-    background: rgba(0, 0, 0, 0.35);
-    border: 1px dashed var(--border);
-    border-radius: 8px;
-    padding: 4px 12px;
+    font-family: var(--mono);
+    font-size: var(--fs-lg);
+    letter-spacing: 0.08em;
+    transition: background var(--ease);
   }
-  .muted {
-    font-size: 12px;
+  .code-value:hover {
+    background: var(--selected);
   }
-  .actions {
-    display: flex;
-    gap: 8px;
-    margin-top: 10px;
+  .error-text {
+    margin: var(--sp-4) 0 0;
   }
-  .error {
-    color: #ff9b94;
-    white-space: pre-wrap;
+  .foot {
+    padding-top: var(--sp-4);
   }
 </style>

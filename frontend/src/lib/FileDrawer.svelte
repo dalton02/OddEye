@@ -32,53 +32,49 @@
 <aside>
   <header>
     <h2>Arquivos da PR</h2>
-    <button class="close" onclick={onclose} aria-label="Fechar">×</button>
+    <button class="close" onclick={onclose} aria-label="Fechar">
+      <svg viewBox="0 0 14 14" aria-hidden="true"><path d="M3 3l8 8M11 3l-8 8" /></svg>
+    </button>
   </header>
 
   <div class="scroll">
     {#if session.mode === "code"}
       <h3>Selecionados pelo Claude <span>{session.files.length}</span></h3>
     {/if}
-    {#each session.files as f, i (f.path)}
-      <button class="item" class:active={activePath === f.path} onclick={() => onopen(f.path)}>
-        <span class="num" class:seen={visited.has(f.path)}>{i + 1}</span>
+    {#each session.files as f (f.path)}
+      <button class="item" class:active={activePath === f.path} class:seen={visited.has(f.path)} onclick={() => onopen(f.path)}>
+        <span class="sev {f.severity}" title={severityLabel[f.severity]}></span>
         <span class="info">
           <span class="name">{name(f.path)}</span>
           <span class="dir">{dir(f.path)}</span>
         </span>
-        <span class="right">
-          {#if countFor(f.path)}<span class="cm">{countFor(f.path)}</span>{/if}
-          <span class="sev {f.severity}">{severityLabel[f.severity]}</span>
-        </span>
+        {#if countFor(f.path)}<span class="cm">{countFor(f.path)} rascunho{countFor(f.path) === 1 ? "" : "s"}</span>{/if}
       </button>
     {/each}
 
     {#if session.others.length}
       <h3>{session.mode === "code" ? "Outros alterados" : "Arquivos alterados"} <span>{session.others.length}</span></h3>
       {#each session.others as f (f.path)}
-        <button class="item" class:active={activePath === f.path} onclick={() => onopen(f.path)}>
+        <button class="item plain" class:active={activePath === f.path} onclick={() => onopen(f.path)}>
           <span class="info">
             <span class="name">{name(f.path)}</span>
             <span class="dir">{dir(f.path)}</span>
           </span>
-          <span class="right">
-            {#if countFor(f.path)}<span class="cm">{countFor(f.path)}</span>{/if}
-            <span class="diff"><b>+{f.additions}</b> <i>-{f.deletions}</i></span>
-          </span>
+          {#if countFor(f.path)}<span class="cm">{countFor(f.path)} rascunho{countFor(f.path) === 1 ? "" : "s"}</span>{/if}
+          <span class="diff"><b class="add">+{f.additions}</b> <i class="del">−{f.deletions}</i></span>
         </button>
       {/each}
     {/if}
 
     {#if session.skipped.length}
-      <h3>
-        <button class="toggle" onclick={() => (showSkipped = !showSkipped)}>
-          {showSkipped ? "▾" : "▸"} Descartados (testes, docs, gerados)
-        </button>
+      <button class="toggle" aria-expanded={showSkipped} onclick={() => (showSkipped = !showSkipped)}>
+        <svg class:open={showSkipped} viewBox="0 0 12 12" aria-hidden="true"><path d="M4.5 2.5l3.5 3.5-3.5 3.5" /></svg>
+        <span class="grow">Descartados (testes, docs, gerados)</span>
         <span>{session.skipped.length}</span>
-      </h3>
+      </button>
       {#if showSkipped}
         {#each session.skipped as s (s.path)}
-          <button class="item dim" class:active={activePath === s.path} onclick={() => onopen(s.path)}>
+          <button class="item plain dim" class:active={activePath === s.path} onclick={() => onopen(s.path)}>
             <span class="info">
               <span class="name">{name(s.path)}</span>
               <span class="dir">{dir(s.path)}</span>
@@ -98,101 +94,96 @@
     left: 0;
     bottom: 0;
     width: 380px;
-    z-index: 40;
-    background: var(--panel-strong);
-    border-right: 1px solid var(--border);
+    max-width: 100%;
+    z-index: var(--z-drawer);
     display: flex;
     flex-direction: column;
-    box-shadow: 20px 0 60px rgba(0, 0, 0, 0.5);
-    animation: slide 0.2s ease-out;
-  }
-  @keyframes slide {
-    from {
-      transform: translateX(-30px);
-      opacity: 0;
-    }
+    border-right: 1px solid var(--border-strong);
+    background: var(--surface);
   }
   header {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    padding: 16px 18px;
+    height: 52px;
+    padding: 0 var(--sp-2) 0 20px;
     border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
   }
   h2 {
+    flex: 1;
     margin: 0;
-    font-size: 16px;
+    font-size: var(--fs-md);
+    font-weight: 600;
   }
   .close {
-    background: none;
+    width: 36px;
+    height: 36px;
+    display: grid;
+    place-items: center;
     border: none;
-    color: var(--muted);
-    font-size: 24px;
-    line-height: 1;
+    border-radius: var(--r-sm);
+    background: none;
+    color: var(--text);
+    transition: background var(--ease);
+  }
+  .close:hover {
+    background: var(--selected);
+  }
+  svg {
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.5;
+    stroke-linecap: round;
+    stroke-linejoin: round;
   }
   .scroll {
     overflow: auto;
-    padding: 8px 10px 20px;
+    padding: var(--sp-2) 0 var(--sp-5);
   }
   h3 {
     display: flex;
     justify-content: space-between;
-    align-items: center;
-    margin: 16px 8px 6px;
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
+    align-items: baseline;
+    margin: 0;
+    padding: var(--sp-4) 20px 6px;
+    font-size: var(--fs-xs);
+    font-weight: 400;
     color: var(--muted);
-  }
-  h3 span {
-    font-family: var(--mono);
-  }
-  .toggle {
-    background: none;
-    border: none;
-    color: inherit;
-    font: inherit;
-    letter-spacing: inherit;
-    text-transform: inherit;
-    padding: 0;
   }
   .item {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: var(--sp-3);
     width: 100%;
-    padding: 8px 10px;
-    border-radius: 10px;
+    padding: var(--sp-2) 20px;
+    border: none;
     background: none;
-    border: 1px solid transparent;
     color: var(--text);
+    font-size: var(--fs-sm);
     text-align: left;
+    transition: background var(--ease);
+  }
+  .item.plain {
+    padding-left: 40px;
   }
   .item:hover {
-    background: rgba(255, 255, 255, 0.05);
+    background: var(--surface-2);
   }
   .item.active {
-    background: rgba(217, 119, 87, 0.12);
-    border-color: rgba(217, 119, 87, 0.4);
+    background: var(--selected);
   }
-  .item.dim {
-    opacity: 0.65;
+  .item.active .name {
+    font-weight: 600;
   }
-  .num {
-    width: 22px;
-    height: 22px;
-    flex-shrink: 0;
-    border-radius: 50%;
-    border: 1px solid var(--border);
-    display: grid;
-    place-items: center;
-    font-size: 11px;
+  /* já visitado: o nome recua para cinza, e o que falta ver continua em destaque */
+  .item.seen:not(.active) .name {
     color: var(--muted);
   }
-  .num.seen {
-    background: var(--claude);
-    border-color: var(--claude);
-    color: #fff;
+  .item.dim {
+    color: var(--muted);
   }
   .info {
     flex: 1;
@@ -201,14 +192,13 @@
     flex-direction: column;
   }
   .name {
-    font-family: var(--mono);
-    font-size: 12.5px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
   .dir {
-    font-size: 11px;
+    font-family: var(--mono);
+    font-size: var(--fs-xs);
     color: var(--muted);
     overflow: hidden;
     text-overflow: ellipsis;
@@ -216,33 +206,41 @@
     direction: rtl;
     text-align: left;
   }
-  .right {
-    display: flex;
-    align-items: center;
-    gap: 6px;
+  .cm,
+  .reason {
+    font-size: var(--fs-xs);
+    white-space: nowrap;
   }
-  .cm {
-    background: var(--claude);
-    color: #fff;
-    font-size: 10px;
-    font-weight: 800;
-    border-radius: 999px;
-    padding: 1px 6px;
+  .reason {
+    color: var(--muted);
   }
   .diff {
     font-family: var(--mono);
-    font-size: 11px;
+    font-size: var(--fs-xs);
+    white-space: nowrap;
   }
-  .diff b {
-    color: var(--green);
-    font-weight: 400;
-  }
-  .diff i {
-    color: var(--red);
-    font-style: normal;
-  }
-  .reason {
-    font-size: 11px;
+  .toggle {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-2);
+    width: 100%;
+    margin-top: var(--sp-3);
+    padding: var(--sp-3) 20px;
+    border: none;
+    border-top: 1px solid var(--border);
+    background: none;
     color: var(--muted);
+    font-size: var(--fs-xs);
+    text-align: left;
+  }
+  .toggle svg {
+    width: 12px;
+    height: 12px;
+  }
+  .toggle svg.open {
+    rotate: 90deg;
+  }
+  .grow {
+    flex: 1;
   }
 </style>

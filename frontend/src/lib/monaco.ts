@@ -11,17 +11,30 @@ self.MonacoEnvironment = {
 
 monaco.editor.defineTheme("oddeye", {
   base: "vs-dark",
+  /* a sintaxe herda as cores do vs-dark (keywords, strings, tipos); só as superfícies seguem o tema do app */
   inherit: true,
   rules: [],
   colors: {
-    "editor.background": "#16171b",
-    "editorGutter.background": "#16171b",
-    "minimap.background": "#131417",
+    "editorIndentGuide.background1": "#1c1c1c",
+    "editorIndentGuide.activeBackground1": "#333333",
+    "editorCursor.foreground": "#ededed",
+    "editor.selectionBackground": "#3a3a3a",
+    "editor.inactiveSelectionBackground": "#2a2a2a",
+    "editorOverviewRuler.border": "#00000000",
+    "editor.background": "#0a0a0a",
+    "editorGutter.background": "#0a0a0a",
     "editor.lineHighlightBackground": "#ffffff0a",
     "editor.lineHighlightBorder": "#00000000",
-    "editor.foreground": "#d4d4d4",
-    "editorLineNumber.foreground": "#6e7681",
-    "editorLineNumber.activeForeground": "#c6c6c6"
+    "editor.foreground": "#c4c4c4",
+    "editorLineNumber.foreground": "#8f8f8f",
+    "editorLineNumber.activeForeground": "#ededed",
+    "editorStickyScroll.background": "#111111",
+    "editorStickyScrollHover.background": "#171717",
+    "editorHoverWidget.background": "#111111",
+    "editorHoverWidget.border": "#333333",
+    "scrollbarSlider.background": "#33333380",
+    "scrollbarSlider.hoverBackground": "#333333",
+    "scrollbarSlider.activeBackground": "#8f8f8f"
   }
 });
 

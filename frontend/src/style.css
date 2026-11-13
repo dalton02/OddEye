@@ -1,28 +1,52 @@
-@font-face {
-  font-family: "Nunito";
-  font-style: normal;
-  font-weight: 400;
-  src: url("assets/fonts/nunito-v16-latin-regular.woff2") format("woff2");
-}
-
+/* Sistema visual: preto, branco e cinzas. Verde, amarelo e vermelho só carregam significado
+   (diff, severidade, erro) e nunca decoram. Movimento: só cor e opacidade, em --ease. */
 :root {
-  --bg: #030407;
-  /* Superfícies em cinza-escuro quase opaco (faixa #121212 do Material) em vez de preto puro com
-     transparência: o céu animado não passa por trás do texto. Texto em off-white (~87% de branco),
-     porque branco puro sobre escuro "sangra" (halação), principalmente para quem tem astigmatismo. */
-  --panel: rgba(17, 18, 23, 0.95);
-  --panel-strong: rgba(15, 16, 21, 0.98);
-  --border: rgba(160, 170, 210, 0.13);
-  --text: #dfe1e7;
-  --muted: #9097ab;
-  --claude: #d97757;
-  --claude-soft: #f0a283;
-  --accent: #8ab4ff;
+  --bg: #0a0a0a;
+  --surface: #111111;
+  --surface-2: #171717;
+  --selected: #242424;
+  --border: #242424;
+  --border-strong: #333333;
+  --text: #ededed;
+  --text-2: #c4c4c4;
+  --muted: #8f8f8f;
+  --primary: #ffffff;
+  --on-primary: #0a0a0a;
+
   --green: #3fb950;
   --yellow: #e3b341;
   --red: #f85149;
-  --mono: "JetBrains Mono", "Fira Code", "Cascadia Code", "SF Mono", Consolas, Menlo, monospace;
-  --ui: "Nunito", "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --green-bg: rgba(63, 185, 80, 0.1);
+  --yellow-bg: rgba(227, 179, 65, 0.12);
+  --red-bg: rgba(248, 81, 73, 0.12);
+
+  --mono: "JetBrains Mono Variable", "JetBrains Mono", "Fira Code", "Cascadia Code", "SF Mono", Consolas, Menlo, monospace;
+  --ui: "Inter Variable", "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+
+  --fs-xs: 12px;
+  --fs-sm: 13px;
+  --fs-md: 15px;
+  --fs-lg: 20px;
+  --fs-xl: 32px;
+
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 24px;
+  --sp-6: 32px;
+
+  --r-sm: 6px;
+  --r-md: 10px;
+
+  --shadow: 0 24px 64px rgba(0, 0, 0, 0.6);
+  --ease: 120ms;
+
+  --z-drawer: 40;
+  --z-fullscreen: 35;
+  --z-popover: 45;
+  --z-modal: 50;
+  --z-toast: 60;
 }
 
 * {
@@ -38,6 +62,8 @@ body,
   background: var(--bg);
   color: var(--text);
   font-family: var(--ui);
+  font-size: var(--fs-sm);
+  line-height: 1.5;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -51,92 +77,284 @@ button:disabled {
   opacity: 0.45;
 }
 
+:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
 ::-webkit-scrollbar {
   width: 10px;
   height: 10px;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(140, 160, 255, 0.18);
-  border-radius: 8px;
+  background: var(--border-strong);
+  border-radius: var(--r-sm);
 }
 ::-webkit-scrollbar-track {
   background: transparent;
 }
 
-.btn {
-  border: 1px solid var(--border);
-  background: rgba(255, 255, 255, 0.04);
-  color: var(--text);
-  padding: 8px 14px;
-  border-radius: 10px;
-  font-size: 13px;
-  transition: background 0.15s, border-color 0.15s, transform 0.1s;
-}
-.btn:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.09);
-  border-color: rgba(140, 160, 255, 0.35);
-}
-.btn:active:not(:disabled) {
-  transform: translateY(1px);
-}
-.btn.primary {
-  background: linear-gradient(135deg, #e0825f, #c9613f);
-  border-color: transparent;
-  color: #fff;
-  font-weight: 700;
-}
-.btn.primary:hover:not(:disabled) {
-  background: linear-gradient(135deg, #ea9070, #d46c49);
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+    animation: none !important;
+  }
 }
 
+/* Botões */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2);
+  height: 36px;
+  padding: 0 var(--sp-4);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--text);
+  font-size: var(--fs-sm);
+  white-space: nowrap;
+  transition: background var(--ease), border-color var(--ease), color var(--ease);
+}
+.btn:hover:not(:disabled) {
+  background: var(--selected);
+}
+.btn.primary {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: var(--on-primary);
+  font-weight: 600;
+}
+.btn.primary:hover:not(:disabled) {
+  background: var(--text-2);
+  border-color: var(--text-2);
+}
+.btn.small {
+  height: 28px;
+  padding: 0 10px;
+}
+.btn.square {
+  width: 36px;
+  padding: 0;
+}
+.btn svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Botão de texto */
+.link {
+  display: inline;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  text-decoration: underline;
+  text-decoration-color: var(--muted);
+  text-underline-offset: 3px;
+  transition: color var(--ease), text-decoration-color var(--ease);
+}
+.link:hover:not(:disabled) {
+  color: var(--primary);
+  text-decoration-color: currentColor;
+}
+.link.quiet {
+  color: var(--muted);
+}
+
+/* Controle segmentado */
+.seg {
+  display: inline-flex;
+  flex-shrink: 0;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+}
+.seg button {
+  height: 28px;
+  padding: 0 var(--sp-3);
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--muted);
+  font-size: var(--fs-sm);
+  transition: background var(--ease), color var(--ease);
+}
+.seg button:hover {
+  color: var(--text);
+}
+.seg button.on {
+  background: var(--selected);
+  color: var(--text);
+  font-weight: 600;
+}
+
+/* Severidade: bolinha + rótulo */
 .sev {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  padding: 2px 8px;
-  border-radius: 999px;
+  gap: 6px;
+  font-size: var(--fs-sm);
   white-space: nowrap;
 }
-.sev.critical {
-  color: #ffb4ad;
-  background: rgba(248, 81, 73, 0.18);
-  border: 1px solid rgba(248, 81, 73, 0.45);
+.sev::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--muted);
+  flex-shrink: 0;
 }
-.sev.high {
-  color: #f6d68a;
-  background: rgba(227, 179, 65, 0.15);
-  border: 1px solid rgba(227, 179, 65, 0.4);
+.sev.critical::before {
+  background: var(--red);
 }
-.sev.medium {
-  color: #a9c7ff;
-  background: rgba(138, 180, 255, 0.13);
-  border: 1px solid rgba(138, 180, 255, 0.35);
+.sev.high::before {
+  background: var(--yellow);
 }
 .sev.none {
   color: var(--muted);
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid var(--border);
+}
+.sev.none::before {
+  display: none;
+}
+
+/* Campos */
+.field {
+  width: 100%;
+  min-height: 36px;
+  padding: 0 var(--sp-3);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-sm);
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  color-scheme: dark;
+  transition: border-color var(--ease);
+}
+textarea.field {
+  padding: 10px var(--sp-3);
+  line-height: 1.5;
+  resize: vertical;
+}
+.field:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+.field::placeholder {
+  color: var(--muted);
+}
+input[type="checkbox"],
+input[type="radio"],
+input[type="range"] {
+  accent-color: var(--text);
+}
+
+/* Modais */
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--sp-5);
+  background: rgba(0, 0, 0, 0.6);
+}
+.modal {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 600px;
+  max-height: 100%;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+.modal-head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 20px var(--sp-5);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.modal-head h2 {
+  margin: 0;
+  font-size: var(--fs-lg);
+  font-weight: 600;
+  line-height: 1.4;
+}
+.modal-head p {
+  margin: 0;
+  color: var(--muted);
+}
+.modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-5);
+  padding: 20px var(--sp-5);
+  overflow: auto;
+  min-height: 0;
+}
+.modal-foot {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: var(--sp-3);
+  padding: var(--sp-4) var(--sp-5);
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+/* Utilidades */
+.label {
+  font-size: var(--fs-xs);
+  color: var(--muted);
+}
+.mono {
+  font-family: var(--mono);
+}
+.add {
+  color: var(--green);
+  font-weight: 400;
+  font-style: normal;
+}
+.del {
+  color: var(--red);
+  font-weight: 400;
+  font-style: normal;
+}
+.error-text {
+  color: var(--red);
+  white-space: pre-wrap;
 }
 
 /* Decorações do Monaco */
 .pg-line-added {
-  background: rgba(46, 160, 67, 0.09);
+  background: var(--green-bg);
 }
 .pg-gutter-added {
-  background: #3fb950;
-  width: 3px !important;
+  background: var(--green);
+  width: 2px !important;
   margin-left: 4px;
 }
 .pg-line-attention {
-  background: rgba(227, 179, 65, 0.09);
+  background: var(--yellow-bg);
 }
 .pg-line-flash {
-  background: rgba(217, 119, 87, 0.35);
-  transition: background 0.6s;
+  background: rgba(255, 255, 255, 0.16);
 }
 .pg-glyph-attention::before {
   content: "!";
@@ -145,20 +363,20 @@ button:disabled {
   justify-content: center;
   width: 16px;
   height: 16px;
-  margin: 1px 0 0 2px;
+  margin: 2px 0 0 2px;
   border-radius: 50%;
-  background: #e3b341;
-  color: #1e1e1e;
-  font: 800 11px var(--ui);
+  background: var(--yellow);
+  color: var(--on-primary);
+  font: 600 11px var(--ui);
 }
 .pg-glyph-comment::before {
   content: "";
   display: block;
-  width: 16px;
-  height: 14px;
-  margin: 2px 0 0 2px;
-  background: var(--claude);
-  border-radius: 4px 4px 4px 0;
+  width: 8px;
+  height: 8px;
+  margin: 6px 0 0 6px;
+  border-radius: 50%;
+  background: var(--primary);
 }
 .pg-glyph-add {
   cursor: pointer;
@@ -168,14 +386,14 @@ button:disabled {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 17px;
-  height: 17px;
-  margin: 1px 0 0 2px;
-  border-radius: 5px;
-  background: #2f81f7;
-  color: #fff;
-  font: 800 14px/1 var(--ui);
+  width: 16px;
+  height: 16px;
+  margin: 2px 0 0 2px;
+  border-radius: 4px;
+  background: var(--primary);
+  color: var(--on-primary);
+  font: 600 14px/1 var(--ui);
 }
 .pg-glyph-add.outside::before {
-  background: #6e7681;
+  background: var(--muted);
 }

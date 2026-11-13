@@ -22,7 +22,7 @@ export const changeColor: Record<Change, string> = {
   new: "#3fb950",
   changed: "#e3b341",
   removed: "#f85149",
-  context: "#8f97ad"
+  context: "#8f8f8f"
 };
 
 export const prKindLabel: Record<string, string> = {

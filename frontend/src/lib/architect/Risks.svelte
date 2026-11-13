@@ -17,179 +17,133 @@
   const label = $derived(new Map(nodes.map((n) => [n.id, n.label])));
   const order: Record<string, number> = { high: 0, medium: 1, low: 2 };
   const sorted = $derived([...risks].sort((a, b) => order[a.level] - order[b.level]));
+  /* modificadores do .sev global: alto ganha a bolinha amarela, médio a cinza, baixo fica só no texto */
+  const sev: Record<string, string> = { high: "high", medium: "medium", low: "none" };
 
   function toggle(q: string): void {
     picked = picked.includes(q) ? picked.filter((p) => p !== q) : [...picked, q];
   }
 </script>
 
-<div class="cols" class:single={!risks.length || !questions.length}>
-  {#if risks.length}
-    <section>
-      <h3>Riscos de arquitetura</h3>
-      {#each sorted as r, i (i)}
-        <article class={r.level}>
-          <header>
-            <span class="level"><i></i>{levelLabel[r.level]}</span>
-            <h4>{r.title}</h4>
-          </header>
-          <p>{r.detail}</p>
-          {#if r.node && label.has(r.node)}
-            <button class="where" onclick={() => onnode(r.node)} title="Ver este componente no mapa">
-              <svg viewBox="0 0 12 12" aria-hidden="true"><path d="M6 1.5l3.9 2.25v4.5L6 10.5 2.1 8.25v-4.5z" /></svg>
-              {label.get(r.node)}
-            </button>
-          {/if}
-        </article>
-      {/each}
-    </section>
-  {/if}
+<div class="risks">
+  <div class="cols">
+    {#if risks.length}
+      <section>
+        <h3>Riscos de arquitetura</h3>
+        <div class="rows">
+          {#each sorted as r, i (i)}
+            <article>
+              <header>
+                <span class="sev {sev[r.level] ?? 'medium'}">{levelLabel[r.level]}</span>
+                <h4>{r.title}</h4>
+              </header>
+              <p>{r.detail}</p>
+              {#if r.node && label.has(r.node)}
+                <button class="link where" onclick={() => onnode(r.node)} title="Ver este componente no mapa">Ver {label.get(r.node)} no mapa</button>
+              {/if}
+            </article>
+          {/each}
+        </div>
+      </section>
+    {/if}
 
-  {#if questions.length}
-    <section>
-      <h3>Perguntas para o autor</h3>
-      <p class="sub">Marque as que quiser levar: elas entram no comentário geral do review, que você ainda edita antes de enviar.</p>
-      {#each questions as q (q)}
-        <label class="q" class:on={picked.includes(q)}>
-          <input type="checkbox" checked={picked.includes(q)} onchange={() => toggle(q)} />
-          <span>{q}</span>
-        </label>
-      {/each}
-      <button class="btn primary go" disabled={!picked.length} onclick={onreview}>
-        {picked.length ? `Levar ${picked.length} para o review` : "Marque uma pergunta"}
-      </button>
-    </section>
-  {/if}
+    {#if questions.length}
+      <section>
+        <h3>Perguntas para o autor</h3>
+        <p class="sub">Marque as que quiser levar: elas entram no comentário geral do review, que você ainda edita antes de enviar.</p>
+        <div class="rows">
+          {#each questions as q (q)}
+            <label class="q">
+              <input type="checkbox" checked={picked.includes(q)} onchange={() => toggle(q)} />
+              <span>{q}</span>
+            </label>
+          {/each}
+        </div>
+        <button class="btn go" disabled={!picked.length} onclick={onreview}>
+          {picked.length ? `Levar ${picked.length} para o review` : "Marque uma pergunta"}
+        </button>
+      </section>
+    {/if}
+  </div>
 </div>
 
 <style>
-  .cols {
+  .risks {
     height: 100%;
     overflow: auto;
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, 400px), 1fr));
-    align-content: start;
-    gap: 12px;
-    padding: 2px 4px 8px;
+  }
+  .cols {
+    width: 100%;
+    max-width: 1040px;
+    margin: 0 auto;
+    padding-bottom: var(--sp-6);
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--sp-6) 48px;
   }
   section {
-    background: var(--panel);
-    border: 1px solid var(--border);
-    border-radius: 14px;
-    padding: 16px 18px;
+    flex: 1 1 360px;
+    min-width: 0;
     display: flex;
     flex-direction: column;
-    gap: 10px;
   }
   h3 {
-    margin: 0;
-    font-size: 15px;
+    margin: 0 0 var(--sp-3);
+    font-size: var(--fs-md);
+    font-weight: 600;
+  }
+  h3:has(+ .sub) {
+    margin-bottom: var(--sp-1);
   }
   .sub {
-    margin: -4px 0 2px;
-    font-size: 12.5px;
+    margin: 0 0 var(--sp-3);
     color: var(--muted);
-    line-height: 1.45;
+  }
+  .rows {
+    display: flex;
+    flex-direction: column;
+    border-bottom: 1px solid var(--border);
   }
   article {
-    border: 1px solid var(--border);
-    border-radius: 11px;
-    padding: 11px 13px;
-    background: rgba(255, 255, 255, 0.02);
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-1);
+    padding: var(--sp-4) 0;
+    border-top: 1px solid var(--border);
   }
   article header {
     display: flex;
-    align-items: center;
-    gap: 10px;
+    align-items: baseline;
+    gap: var(--sp-3);
   }
   h4 {
     margin: 0;
-    font-size: 14px;
-    line-height: 1.35;
-  }
-  .level {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    flex-shrink: 0;
-    font-size: 10.5px;
-    font-weight: 700;
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
-    border: 1px solid var(--border);
-    border-radius: 999px;
-    padding: 2px 8px 2px 6px;
-    color: var(--text);
-  }
-  .level i {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: var(--muted);
-  }
-  .high .level i {
-    background: var(--red);
-  }
-  .medium .level i {
-    background: var(--yellow);
-  }
-  .low .level i {
-    background: #6f9df0;
+    font-size: var(--fs-sm);
+    font-weight: 600;
   }
   article p {
-    margin: 7px 0 0;
-    font-size: 13.5px;
-    line-height: 1.5;
-    color: #b8bdcb;
+    margin: 0;
+    color: var(--text-2);
   }
   .where {
-    margin-top: 9px;
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    background: rgba(255, 255, 255, 0.04);
-    border: 1px solid var(--border);
-    color: var(--text);
-    border-radius: 999px;
-    padding: 2px 10px 2px 7px;
-    font-size: 12px;
-  }
-  .where:hover {
-    border-color: rgba(217, 119, 87, 0.55);
-  }
-  .where svg {
-    width: 12px;
-    height: 12px;
-    fill: none;
-    stroke: var(--muted);
-    stroke-width: 1.2;
+    align-self: flex-start;
   }
   .q {
     display: flex;
-    gap: 10px;
     align-items: flex-start;
-    border: 1px solid var(--border);
-    border-radius: 11px;
-    padding: 10px 12px;
-    font-size: 13.5px;
-    line-height: 1.5;
+    gap: var(--sp-3);
+    padding: var(--sp-3) 0;
+    border-top: 1px solid var(--border);
     cursor: pointer;
-    transition: border-color 0.15s, background 0.15s;
-  }
-  .q:hover {
-    border-color: rgba(217, 119, 87, 0.45);
-  }
-  .q.on {
-    border-color: rgba(217, 119, 87, 0.7);
-    background: rgba(217, 119, 87, 0.08);
   }
   .q input {
-    margin: 3px 0 0;
-    accent-color: var(--claude);
+    width: 16px;
+    height: 16px;
+    margin: 2px 0 0;
     flex-shrink: 0;
   }
   .go {
-    align-self: flex-end;
-    margin-top: 2px;
+    align-self: flex-start;
+    margin-top: var(--sp-4);
   }
 </style>

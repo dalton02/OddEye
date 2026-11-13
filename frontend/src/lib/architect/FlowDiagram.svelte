@@ -16,6 +16,11 @@
   const label = $derived(new Map(nodes.map((n) => [n.id, n.label])));
   const changes = $derived((["new", "changed", "context"] as Change[]).filter((c) => flow.steps.some((s) => s.change === c)));
   const stepLabel: Record<string, string> = { new: "passo novo", changed: "passo alterado", context: "já existia" };
+  const colorWord: Record<string, string> = { new: "verde", changed: "amarelo", context: "cinza" };
+  const legend = $derived.by(() => {
+    const parts = changes.map((c) => `${colorWord[c]}: ${stepLabel[c]}`).join(" · ");
+    return parts ? parts[0].toUpperCase() + parts.slice(1) : "";
+  });
 
   /* participantes do passo atual ficam acesos no cabeçalho */
   const active = $derived(step >= 0 && flow.steps[step] ? new Set([flow.steps[step].from, flow.steps[step].to]) : null);
@@ -23,19 +28,9 @@
 
 <div class="flow">
   <div class="bar">
-    <div class="steps" role="group" aria-label="Passos do fluxo">
-      <button class="pill all" class:on={step < 0} onclick={() => (step = -1)}>Fluxo inteiro</button>
-      {#each flow.steps as s, i (i)}
-        <button class="pill" class:on={step === i} class:done={step > i} title={s.action} aria-label="Passo {i + 1}: {s.action}" onclick={() => (step = i)}>
-          {i + 1}
-        </button>
-      {/each}
-    </div>
-    <div class="legend">
-      {#each changes as c (c)}
-        <span class="key"><i style="background: {changeColor[c]}"></i>{stepLabel[c]}</span>
-      {/each}
-    </div>
+    <button class="link" class:quiet={step < 0} onclick={() => (step = -1)}>Fluxo inteiro</button>
+    {#if step >= 0}<span class="label">Passo {step + 1} de {flow.steps.length}</span>{/if}
+    {#if legend}<span class="label legend">{legend}</span>{/if}
   </div>
 
   <div class="canvas">
@@ -57,7 +52,7 @@
         {@const lines = wrap(label.get(l.id) ?? l.id, 18, 2)}
         <g class="life" class:off={active !== null && !active.has(l.id)}>
           <line x1={l.x} y1={24 + SEQ_HEAD_H} x2={l.x} y2={layout.height - 16} />
-          <rect x={l.x - SEQ_HEAD_W / 2} y="24" width={SEQ_HEAD_W} height={SEQ_HEAD_H} rx="11" />
+          <rect x={l.x - SEQ_HEAD_W / 2} y="24" width={SEQ_HEAD_W} height={SEQ_HEAD_H} rx="6" />
           <text x={l.x} y={lines.length > 1 ? 42 : 50} text-anchor="middle">
             {#each lines as t, i (i)}<tspan x={l.x} dy={i === 0 ? 0 : 14}>{t}</tspan>{/each}
           </text>
@@ -82,7 +77,7 @@
             }
           }}
         >
-          <rect class="hit" x="0" y={a.y - 34} width={layout.width} height="58" rx="10" />
+          <rect class="hit" x="0" y={a.y - 34} width={layout.width} height="58" rx="6" />
           {#if a.self}
             <path class="arrow" d="M{a.x1},{a.y - 12} h30 v24 h-24" stroke={changeColor[s.change]} marker-end="url(#seq-{s.change})" />
             <text class="action" x={a.labelX} y={a.y + 4}>{wrap(s.action, 36, 1)[0]}</text>
@@ -103,58 +98,18 @@
     height: 100%;
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: var(--sp-3);
     min-height: 0;
   }
   .bar {
     display: flex;
-    align-items: center;
-    gap: 16px;
+    align-items: baseline;
+    gap: var(--sp-2) var(--sp-4);
     flex-wrap: wrap;
-  }
-  .steps {
-    display: flex;
-    gap: 6px;
-    flex-wrap: wrap;
-  }
-  .pill {
-    min-width: 30px;
-    height: 30px;
-    padding: 0 9px;
-    border-radius: 999px;
-    border: 1px solid var(--border);
-    background: var(--panel);
-    color: var(--muted);
-    font-size: 12.5px;
-  }
-  .pill:hover {
-    color: var(--text);
-    border-color: rgba(217, 119, 87, 0.5);
-  }
-  .pill.done {
-    color: var(--text);
-  }
-  .pill.on {
-    background: rgba(217, 119, 87, 0.22);
-    border-color: rgba(217, 119, 87, 0.7);
-    color: var(--text);
+    min-height: 28px;
   }
   .legend {
-    display: flex;
-    gap: 14px;
     margin-left: auto;
-    font-size: 11.5px;
-    color: var(--muted);
-  }
-  .key {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-  }
-  .key i {
-    width: 14px;
-    height: 3px;
-    border-radius: 2px;
   }
 
   .canvas {
@@ -163,10 +118,6 @@
     overflow: auto;
     /* flex + margin auto centraliza sem cortar o topo quando o diagrama é maior que a área */
     display: flex;
-    background: var(--panel);
-    border: 1px solid var(--border);
-    border-radius: 14px;
-    padding: 6px;
   }
   svg {
     display: block;
@@ -176,19 +127,19 @@
   }
 
   .life {
-    transition: opacity 0.25s;
+    transition: opacity var(--ease);
   }
   .life line {
-    stroke: rgba(160, 170, 210, 0.22);
+    stroke: var(--border-strong);
     stroke-width: 1;
   }
   .life rect {
-    fill: #191b24;
-    stroke: rgba(160, 170, 210, 0.35);
-    stroke-width: 1.5;
+    fill: var(--surface);
+    stroke: var(--border-strong);
+    stroke-width: 1;
   }
   .life text {
-    font: 700 12.5px var(--ui);
+    font: 600 var(--fs-sm) var(--ui);
     fill: var(--text);
   }
   .life.off {
@@ -198,44 +149,47 @@
   .step {
     cursor: pointer;
     outline: none;
-    transition: opacity 0.25s;
+    transition: opacity var(--ease);
   }
   .hit {
     fill: transparent;
   }
   .step:hover .hit,
   .step:focus-visible .hit {
-    fill: rgba(255, 255, 255, 0.035);
+    fill: var(--surface);
   }
-  .step.current .hit {
-    fill: rgba(217, 119, 87, 0.1);
+  /* o foco do teclado contorna a faixa do passo, já que o outline não vale para <g> */
+  .step:focus-visible .hit {
+    stroke: var(--primary);
+    stroke-width: 2;
   }
   .arrow {
     fill: none;
-    stroke-width: 2;
+    stroke-width: 1.5;
     stroke-linecap: round;
     stroke-linejoin: round;
   }
   .step.current .arrow {
-    stroke-width: 3;
+    stroke-width: 2.5;
   }
   .action {
-    font: 12.5px var(--ui);
-    fill: var(--text);
+    font: var(--fs-sm) var(--ui);
+    fill: var(--muted);
     paint-order: stroke;
-    stroke: #111217;
+    stroke: var(--bg);
     stroke-width: 5px;
     stroke-linejoin: round;
   }
   .step.current .action {
-    font-weight: 700;
+    font-weight: 600;
+    fill: var(--primary);
   }
   .num-bg {
-    fill: #111217;
-    stroke-width: 1.5;
+    fill: var(--bg);
+    stroke-width: 1;
   }
   .num {
-    font: 700 11px var(--ui);
+    font: 600 var(--fs-xs) var(--ui);
     fill: var(--text);
     pointer-events: none;
   }

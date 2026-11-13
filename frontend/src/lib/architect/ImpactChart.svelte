@@ -23,9 +23,9 @@
   const weights = $derived.by(() => {
     const rows = nodes
       .filter((n) => n.weight.additions + n.weight.deletions > 0)
-      .map((n) => ({ label: n.label, ...n.weight }))
+      .map((n) => ({ label: n.label, loose: false, ...n.weight }))
       .sort((a, b) => b.additions + b.deletions - (a.additions + a.deletions));
-    if (loose.additions + loose.deletions > 0) rows.push({ label: "Fora dos componentes", ...loose });
+    if (loose.additions + loose.deletions > 0) rows.push({ label: "Fora dos componentes", loose: true, ...loose });
     return rows;
   });
   const maxWeight = $derived(Math.max(1, ...weights.map((w) => w.additions + w.deletions)));
@@ -33,245 +33,192 @@
 </script>
 
 <div class="impact">
-  {#if impact.length}
-    <section>
-      <h3>Como a PR mexe na saúde do sistema</h3>
-      <p class="sub">Nota de −2 a +2 em cada eixo. Para a direita o sistema melhora, para a esquerda piora.</p>
-
-      <div class="axes">
-        <div class="row head" aria-hidden="true">
-          <span></span>
-          <div class="track ticks">
-            <span style="left: 0">−2</span><span style="left: 25%">−1</span><span style="left: 50%">0</span><span style="left: 75%">+1</span><span
-              style="left: 100%">+2</span
-            >
-          </div>
-          <span></span>
+  <div class="col">
+    {#if impact.length}
+      <section>
+        <div class="head">
+          <h3>Como a PR mexe na saúde do sistema</h3>
+          <p class="label">Nota de −2 a +2 em cada eixo. Para a direita o sistema melhora, para a esquerda piora.</p>
         </div>
+
         {#each impact as a (a.axis)}
           <div class="row" title="{axisLabel[a.axis]}: {signed(a.score)} ({scoreLabel[String(a.score)]})">
             <span class="name">{axisLabel[a.axis]}</span>
-            <div class="track">
-              <i class="grid" style="left: 0"></i><i class="grid" style="left: 25%"></i><i class="grid" style="left: 75%"></i><i
-                class="grid"
-                style="left: 100%"
-              ></i>
-              <i class="zero"></i>
+            <div class="track" aria-hidden="true">
               {#if a.score > 0}
-                <i class="bar up" style="left: 50%; width: {a.score * 25}%"></i>
+                <i class="bar up" style="width: {a.score * 25}%"></i>
               {:else if a.score < 0}
-                <i class="bar down" style="right: 50%; width: {-a.score * 25}%"></i>
-              {:else}
-                <i class="still"></i>
+                <i class="bar down" style="width: {-a.score * 25}%"></i>
               {/if}
+              <i class="zero"></i>
             </div>
-            <span class="note"><b>{signed(a.score)}</b> <span class="verdict">{scoreLabel[String(a.score)]}.</span> {a.note}</span>
+            <b class="score">{signed(a.score)}</b>
+            <span class="note">{scoreLabel[String(a.score)]}. {a.note}</span>
           </div>
         {/each}
-      </div>
-    </section>
-  {/if}
+      </section>
+    {/if}
 
-  {#if weights.length}
-    <section>
-      <h3>Onde está o peso da mudança</h3>
-      <p class="sub">
-        Linhas alteradas em cada componente, contadas direto do diff.
-        <span class="key"><i class="sw add"></i>adicionadas</span>
-        <span class="key"><i class="sw del"></i>removidas</span>
-      </p>
-      <div class="weights">
+    {#if weights.length}
+      <section>
+        <div class="head">
+          <h3>Onde está o peso da mudança</h3>
+          <p class="label">
+            Linhas alteradas em cada componente, contadas direto do diff.
+            <span class="key"><i class="sw pos"></i>adicionadas</span>
+            <span class="key"><i class="sw neg"></i>removidas</span>
+          </p>
+        </div>
+
         {#each weights as w (w.label)}
           <div class="wrow" title="{w.label}: {w.additions} linhas adicionadas, {w.deletions} removidas">
-            <span class="name">{w.label}</span>
-            <div class="stack">
-              {#if w.additions}<i class="seg add" style="width: {pct(w.additions)}"></i>{/if}
-              {#if w.deletions}<i class="seg del" style="width: {pct(w.deletions)}"></i>{/if}
-              <span class="val">+{w.additions} −{w.deletions}</span>
+            <span class="name" class:quiet={w.loose}>{w.label}</span>
+            <div class="stack" aria-hidden="true">
+              {#if w.additions}<i class="part pos" style="width: {pct(w.additions)}"></i>{/if}
+              {#if w.deletions}<i class="part neg" style="width: {pct(w.deletions)}"></i>{/if}
             </div>
+            <span class="val mono"><span class="add">+{w.additions}</span> <span class="del">−{w.deletions}</span></span>
           </div>
         {/each}
-      </div>
-    </section>
-  {/if}
+      </section>
+    {/if}
+  </div>
 </div>
 
 <style>
   .impact {
     height: 100%;
     overflow: auto;
+  }
+  .col {
+    width: 100%;
+    max-width: 1040px;
+    margin: 0 auto;
+    padding-bottom: var(--sp-6);
     display: flex;
     flex-direction: column;
-    gap: 12px;
-    padding: 2px 4px 8px;
+    gap: var(--sp-6);
   }
   section {
-    background: var(--panel);
-    border: 1px solid var(--border);
-    border-radius: 14px;
-    padding: 16px 20px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-3);
+    padding-top: var(--sp-5);
+    border-top: 1px solid var(--border);
+  }
+  .head {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: var(--sp-1) var(--sp-4);
   }
   h3 {
+    flex: 1;
     margin: 0;
-    font-size: 15px;
+    font-size: var(--fs-md);
+    font-weight: 600;
+    white-space: nowrap;
   }
-  .sub {
-    margin: 3px 0 14px;
-    font-size: 12.5px;
-    color: var(--muted);
+  .head p {
+    margin: 0;
     display: flex;
     flex-wrap: wrap;
-    gap: 4px 14px;
+    gap: var(--sp-1) var(--sp-3);
   }
 
   .row {
     display: grid;
-    grid-template-columns: 124px minmax(160px, 300px) minmax(0, 1fr);
+    grid-template-columns: 140px 240px 24px minmax(0, 1fr);
     align-items: center;
-    column-gap: 18px;
-    min-height: 34px;
-  }
-  .row.head {
-    min-height: 20px;
-  }
-  .name {
-    font-size: 13px;
-    text-align: right;
-    color: var(--text);
+    column-gap: var(--sp-4);
   }
   .track {
     position: relative;
-    height: 34px;
+    height: 12px;
+    background: var(--surface-2);
   }
-  .ticks {
-    height: 18px;
-  }
-  .ticks span {
-    position: absolute;
-    top: 0;
-    transform: translateX(-50%);
-    font-size: 11px;
-    color: var(--muted);
-    font-variant-numeric: tabular-nums;
-  }
-  .grid {
+  .bar {
     position: absolute;
     top: 0;
     bottom: 0;
-    width: 1px;
-    background: rgba(160, 170, 210, 0.1);
+  }
+  .bar.up {
+    left: 50%;
+    background: var(--text);
+  }
+  .bar.down {
+    right: 50%;
+    background: var(--red);
   }
   .zero {
     position: absolute;
     left: 50%;
-    top: 0;
-    bottom: 0;
+    top: -3px;
+    bottom: -3px;
     width: 1px;
-    background: rgba(160, 170, 210, 0.45);
+    background: var(--muted);
   }
-  .bar {
-    position: absolute;
-    top: 50%;
-    height: 14px;
-    margin-top: -7px;
-  }
-  /* par divergente frio/quente; a ponta do dado é arredondada, a base (no zero) é reta */
-  .bar.up {
-    background: #6f9df0;
-    border-radius: 0 4px 4px 0;
-  }
-  .bar.down {
-    background: #e5735f;
-    border-radius: 4px 0 0 4px;
-  }
-  .still {
-    position: absolute;
-    left: 50%;
-    top: 50%;
-    width: 9px;
-    height: 9px;
-    margin: -4.5px 0 0 -4.5px;
-    border-radius: 50%;
-    background: #5d6377;
-    box-shadow: 0 0 0 2px #111217;
-  }
-  .note {
-    font-size: 12.5px;
-    line-height: 1.45;
-    color: #b8bdcb;
-    padding: 5px 0;
-  }
-  .note b {
-    color: var(--text);
+  .score {
+    font-weight: 600;
+    text-align: right;
     font-variant-numeric: tabular-nums;
   }
-  .verdict {
-    color: var(--text);
+  .note {
+    min-width: 0;
+    color: var(--muted);
   }
 
   .key {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
+    gap: var(--sp-1);
   }
   .sw {
-    width: 10px;
-    height: 10px;
-    border-radius: 3px;
+    width: 8px;
+    height: 8px;
   }
-  .add {
+  .pos {
     background: var(--green);
   }
-  .del {
+  .neg {
     background: var(--red);
-  }
-  .weights {
-    max-width: 920px;
-    display: flex;
-    flex-direction: column;
-    gap: 9px;
   }
   .wrow {
     display: grid;
-    grid-template-columns: 124px minmax(0, 1fr);
+    grid-template-columns: 180px minmax(0, 300px) auto;
     align-items: center;
-    column-gap: 18px;
+    justify-content: start;
+    column-gap: var(--sp-4);
+  }
+  .name.quiet {
+    color: var(--muted);
   }
   .stack {
     display: flex;
-    align-items: center;
     gap: 2px;
     min-width: 0;
-    /* a parte que sobra à direita guarda o rótulo de valor da maior barra */
-    padding-right: 96px;
+    height: 12px;
+    padding-right: 2px;
   }
-  .seg {
-    height: 14px;
-    min-width: 3px;
-    flex-shrink: 0;
-  }
-  .seg:last-of-type {
-    border-radius: 0 4px 4px 0;
+  .part {
+    min-width: 2px;
   }
   .val {
-    margin-left: 8px;
-    margin-right: -96px;
-    font-size: 12px;
-    color: var(--muted);
+    font-size: var(--fs-xs);
     white-space: nowrap;
-    font-variant-numeric: tabular-nums;
   }
 
   @media (max-width: 900px) {
     .row {
-      grid-template-columns: 110px minmax(0, 1fr);
+      grid-template-columns: 140px minmax(0, 240px) 24px;
+      row-gap: 2px;
     }
     .row .note {
-      grid-column: 2;
-      padding-top: 0;
+      grid-column: 1 / -1;
+      padding-bottom: var(--sp-1);
     }
-    .row.head span:last-child {
-      display: none;
+    .wrow {
+      grid-template-columns: 140px minmax(0, 1fr) auto;
     }
   }
 </style>

@@ -54,38 +54,42 @@
 
 <div class="backdrop" role="presentation" onclick={(e) => e.target === e.currentTarget && !busy && onclose()}>
   <div class="modal" role="dialog" aria-modal="true" aria-labelledby="update-title">
-    <h2 id="update-title">Nova versão disponível: v{info.version}</h2>
-    <p class="sub">Você está na v{info.current}.</p>
+    <div class="modal-head">
+      <h2 id="update-title">Nova versão disponível: v{info.version}</h2>
+      <p>Você está na v{info.current}.</p>
+    </div>
 
-    {#if info.notes}
-      <section>
-        <h3>O que mudou</h3>
-        <p class="notes">{info.notes}</p>
-      </section>
-    {/if}
+    <div class="modal-body">
+      {#if info.notes}
+        <div class="block">
+          <span class="label">O que mudou</span>
+          <p class="notes">{info.notes}</p>
+        </div>
+      {/if}
 
-    {#if progress && progress.stage !== "error"}
-      <div class="progress" role="status">
-        <div class="bar"><div class="fill" class:indeterminate={percent === null} style:width={percent === null ? "40%" : `${percent}%`}></div></div>
-        <p>{status}</p>
-      </div>
-    {:else if progress?.stage === "error"}
-      <p class="error">
-        {progress.manual
-          ? "Não consegui atualizar sozinho neste computador. Baixe a versão nova pela página do release."
-          : `A atualização falhou: ${progress.error}`}
-      </p>
-    {:else if !info.automatic}
-      <p class="muted">Este jeito de instalação não atualiza sozinho. Baixe a versão nova pela página do release.</p>
-    {:else if info.needsPassword}
-      <p class="muted">O sistema vai pedir sua senha uma vez para instalar o pacote. Depois o Oddeye reinicia sozinho.</p>
-    {:else}
-      <p class="muted">O Oddeye baixa a versão nova, instala e reinicia sozinho. Seus rascunhos ficam salvos.</p>
-    {/if}
+      {#if progress && progress.stage !== "error"}
+        <div class="block progress" role="status">
+          <div class="bar"><div class="fill" class:indeterminate={percent === null} style:width={percent === null ? "40%" : `${percent}%`}></div></div>
+          <p class="muted">{status}</p>
+        </div>
+      {:else if progress?.stage === "error"}
+        <p class="error-text">
+          {progress.manual
+            ? "Não consegui atualizar sozinho neste computador. Baixe a versão nova pela página do release."
+            : `A atualização falhou: ${progress.error}`}
+        </p>
+      {:else if !info.automatic}
+        <p class="muted">Este jeito de instalação não atualiza sozinho. Baixe a versão nova pela página do release.</p>
+      {:else if info.needsPassword}
+        <p class="muted">O sistema vai pedir sua senha uma vez para instalar o pacote. Depois o Oddeye reinicia sozinho.</p>
+      {:else}
+        <p class="muted">O Oddeye baixa a versão nova, instala e reinicia sozinho. Seus rascunhos ficam salvos.</p>
+      {/if}
+    </div>
 
-    <footer>
-      {#if !busy}
-        <button class="link" onclick={skip}>Pular esta versão</button>
+    {#if !busy}
+      <div class="modal-foot">
+        <button class="link quiet" onclick={skip}>Pular esta versão</button>
         <span class="spacer"></span>
         <button class="btn" onclick={onclose}>Depois</button>
         {#if info.automatic && !progress?.manual}
@@ -94,94 +98,49 @@
         {#if !info.automatic || progress?.stage === "error"}
           <button class="btn" class:primary={!info.automatic || progress?.manual} onclick={() => api.openReleasePage()}>Baixar manualmente</button>
         {/if}
-      {/if}
-    </footer>
+      </div>
+    {/if}
   </div>
 </div>
 
 <style>
+  /* fica acima do modal de review */
   .backdrop {
-    position: fixed;
-    inset: 0;
-    z-index: 60;
-    background: rgba(2, 3, 10, 0.82);
-    display: grid;
-    place-items: center;
-    padding: 24px;
+    z-index: calc(var(--z-modal) + 1);
   }
   .modal {
-    width: min(560px, 100%);
-    max-height: 90vh;
-    overflow: auto;
-    background: var(--panel-strong);
-    border: 1px solid var(--border);
-    border-radius: 16px;
-    padding: 24px;
-    box-shadow: 0 30px 90px rgba(0, 0, 0, 0.6);
+    max-width: 520px;
   }
-  h2 {
+  .modal-body {
+    gap: var(--sp-4);
+  }
+  .modal-body p {
     margin: 0;
-    font-size: 20px;
   }
-  .sub {
-    margin: 4px 0 18px;
-    color: var(--muted);
-    font-size: 13px;
-  }
-  h3 {
-    margin: 0 0 8px;
-    font-size: 13px;
-    color: var(--muted);
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-  }
-  section {
-    margin-bottom: 18px;
+  .block {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-2);
   }
   .notes {
-    margin: 0;
     max-height: 220px;
     overflow: auto;
     white-space: pre-wrap;
-    font-size: 13px;
-    line-height: 1.5;
-    padding: 12px;
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    background: rgba(255, 255, 255, 0.02);
   }
   .muted {
     color: var(--muted);
-    font-size: 13px;
-    margin: 0 0 18px;
-  }
-  .error {
-    color: var(--red);
-    font-size: 13px;
-    margin: 0 0 18px;
-  }
-  .progress {
-    margin-bottom: 18px;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    font-size: 13px;
-  }
-  .progress p {
-    margin: 0;
-    color: var(--muted);
   }
   .bar {
-    height: 6px;
-    border-radius: 3px;
-    background: rgba(255, 255, 255, 0.08);
+    height: 4px;
+    border-radius: var(--r-sm);
+    background: var(--selected);
     overflow: hidden;
   }
   .fill {
     height: 100%;
-    background: var(--accent);
-    transition: width 0.2s ease;
+    background: var(--text);
   }
+  /* única animação do app: sem total conhecido, a barra precisa mostrar que o download segue vivo */
   .fill.indeterminate {
     animation: slide 1.2s ease-in-out infinite;
   }
@@ -198,24 +157,7 @@
       animation: none;
     }
   }
-  footer {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    flex-wrap: wrap;
-  }
   .spacer {
     flex: 1;
-  }
-  .link {
-    background: none;
-    border: none;
-    padding: 0;
-    color: var(--muted);
-    font-size: 13px;
-    text-decoration: underline;
-  }
-  .link:hover {
-    color: var(--text);
   }
 </style>

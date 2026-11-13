@@ -1,7 +1,8 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import Galaxy from "./lib/Galaxy.svelte";
-  import logo from "./assets/logo.png";
+  /* versão clara da logo (silhueta branca, fundo transparente), gerada a partir de logo.png para o tema escuro */
+  import logo from "./assets/logo-light.png";
   import RichText from "./lib/RichText.svelte";
   import { createResolver } from "./lib/paths";
   import CodeView from "./lib/CodeView.svelte";
@@ -13,7 +14,7 @@
   import Inbox from "./lib/Inbox.svelte";
   import Setup from "./lib/Setup.svelte";
   import ArchitectView from "./lib/architect/ArchitectView.svelte";
-  import { chaptersOf, narrate, ownerOf, prKindLabel } from "./lib/architect/chapters";
+  import { chaptersOf, narrate, ownerOf } from "./lib/architect/chapters";
   import { player } from "./lib/player.svelte";
   import {
     api,
@@ -55,13 +56,12 @@
   let visited = $state(new Set<string>());
   let drawerOpen = $state(false);
   let reviewOpen = $state(false);
-  let typing = $state(false);
-  let revisit = $state(false);
+  let menuOpen = $state(false);
+  let keysOpen = $state(false);
   let celebrate = $state("");
   let recent = $state<string[]>([]);
   let codeView: CodeView | undefined = $state();
   let codeFullscreen = $state(false);
-  let richText: RichText | undefined = $state();
   let showAttention = $state(false);
   /* de onde o usuário veio ao seguir um link de arquivo; undefined = não veio por link (null = visão geral) */
   let backTo = $state<string | null | undefined>(undefined);
@@ -75,9 +75,17 @@
   let selectedNode = $state<string | null>(null);
   let picked = $state<string[]>([]);
 
-  const modes: { value: Mode; hint: string }[] = [
-    { value: "code", hint: "O Claude separa os arquivos críticos e te guia pelo código, arquivo por arquivo." },
-    { value: "architect", hint: "O Claude explica a abordagem, os trade-offs e a arquitetura com diagramas, sem falar de código." }
+  const modes: { value: Mode; short: string; hint: string }[] = [
+    {
+      value: "code",
+      short: "Os arquivos críticos, com o código na tela.",
+      hint: "O Claude separa os arquivos críticos e te guia pelo código, arquivo por arquivo."
+    },
+    {
+      value: "architect",
+      short: "A abordagem, os trade-offs e os diagramas, sem código.",
+      hint: "O Claude explica a abordagem, os trade-offs e a arquitetura com diagramas, sem falar de código."
+    }
   ];
 
   const RECENT_KEY = "oddeye:recent";
@@ -190,8 +198,8 @@
   const speech = $derived.by((): string => {
     if (celebrate) return celebrate;
     if (phase === "loading") {
-      if (progress?.stage === "thinking") return progress.message || "Pensando...";
-      return progress?.message ?? "Preparando a nave...";
+      if (progress?.stage === "thinking") return "Pensando...";
+      return progress?.message ?? "Carregando...";
     }
     if (!session) return "";
     if (blueprint && chapter && activePath === null) {
@@ -306,7 +314,6 @@
 
   async function openPath(path: string, viaLink = false): Promise<void> {
     if (!viaLink) backTo = undefined;
-    revisit = visited.has(path);
     activePath = path;
     index = tourFiles.findIndex((f) => f.path === path);
     drawerOpen = false;
@@ -405,7 +412,8 @@
       e.preventDefault();
       codeView?.commentSelectionOrCursor();
     } else if (e.key === "Escape") {
-      if (drawerOpen) drawerOpen = false;
+      if (menuOpen || keysOpen) closePopovers();
+      else if (drawerOpen) drawerOpen = false;
       else if (inCode) {
         codeFullscreen = false;
         el?.blur();
@@ -413,56 +421,66 @@
     }
   }
 
+  function closePopovers(): void {
+    menuOpen = false;
+    keysOpen = false;
+  }
+
   function short(path: string): string {
     return path.split("/").pop() ?? path;
   }
 </script>
 
-<svelte:window onkeydown={onKey} />
+<svelte:window onkeydown={onKey} onclick={closePopovers} />
 
-<Galaxy dim={phase === "tour"} />
+{#if phase !== "tour"}<Galaxy />{/if}
 
 <div class="app">
   {#if phase !== "tour"}
-    <div class="home-player"><MusicPlayer /></div>
+    <div class="home-player">
+      <MusicPlayer />
+      <button class="btn square" onclick={() => (settingsOpen = true)} title="Configurações" aria-label="Configurações">
+        <svg class="gear" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" /></svg>
+      </button>
+    </div>
   {/if}
   {#if phase === "home"}
     <main class="home">
-      <img class="logo" src={logo} width="150" height="150" alt="" />
-      <h1>Odd<span>eye</span></h1>
-      <p class="tagline">Cole o link de uma pull request. O Claude separa só o que importa e te guia arquivo por arquivo.</p>
-
-      <form
-        class="search"
-        onsubmit={(e) => {
-          e.preventDefault();
-          start();
-        }}
-      >
-        <input bind:value={link} placeholder="https://github.com/org/repo/pull/123" spellcheck="false" autocomplete="off" />
-        <button class="btn primary" type="submit" disabled={!link.trim() || !depsOk}>Decolar</button>
-      </form>
-
-      <div class="mode-pick">
-        <div class="modes" role="group" aria-label="Modo de revisor">
-          {#each modes as m (m.value)}
-            <button class:on={mode === m.value} aria-pressed={mode === m.value} onclick={() => switchMode(m.value)}>{modeLabel[m.value]}</button>
-          {/each}
-        </div>
-        <span>{modes.find((m) => m.value === mode)?.hint}</span>
+      <div class="brand">
+        <img class="logo" src={logo} width="44" height="44" alt="" />
+        <h1>Oddeye</h1>
       </div>
 
-      {#if error}<p class="error">{error}</p>{/if}
-
-      {#if autostartNotice}
-        <div class="notice" role="status">
-          <p>O Oddeye vai abrir junto com o sistema, direto na bandeja, para avisar quando chegar PR nova. Dá para mudar depois em Configurações.</p>
-          <div class="notice-actions">
-            <button class="btn" onclick={() => dismissAutostartNotice(false)}>Não abrir com o sistema</button>
-            <button class="btn primary" onclick={() => dismissAutostartNotice(true)}>Entendi</button>
+      <div class="start">
+        <form
+          class="search"
+          onsubmit={(e) => {
+            e.preventDefault();
+            start();
+          }}
+        >
+          <input
+            class="field mono"
+            bind:value={link}
+            aria-label="Link da pull request"
+            placeholder="https://github.com/org/repo/pull/123"
+            spellcheck="false"
+            autocomplete="off"
+          />
+          <button class="btn primary" type="submit" disabled={!link.trim() || !depsOk}>Analisar</button>
+        </form>
+        <div class="mode-pick">
+          <div class="seg" role="group" aria-label="Modo de revisor">
+            {#each modes as m (m.value)}
+              <button class:on={mode === m.value} aria-pressed={mode === m.value} title={m.hint} onclick={() => switchMode(m.value)}>
+                {modeLabel[m.value]}
+              </button>
+            {/each}
           </div>
+          <span>{modes.find((m) => m.value === mode)?.short}</span>
         </div>
-      {/if}
+        {#if error}<p class="error-text">{error}</p>{/if}
+      </div>
 
       {#if deps && (!depsOk || deps.missingScopes.length > 0)}
         <Setup {deps} onrecheck={recheckDeps} />
@@ -477,6 +495,14 @@
         />
       {/if}
 
+      {#if autostartNotice}
+        <div class="notice" role="status">
+          <span>O Oddeye abre junto com o sistema, direto na bandeja, para avisar de PR nova. Dá para mudar depois em Configurações.</span>
+          <button class="link" onclick={() => dismissAutostartNotice(false)}>Não abrir com o sistema</button>
+          <button class="link" onclick={() => dismissAutostartNotice(true)}>Entendi</button>
+        </div>
+      {/if}
+
       {#if recent.length}
         <div class="recent">
           <span>Recentes</span>
@@ -488,128 +514,140 @@
     </main>
   {:else if phase === "loading"}
     <main class="loading">
-      <div class="loading-row">
-        <img class="logo" src={logo} width="140" height="140" alt="" />
-        <div class="bubble big">
-          <p class="speech">{speech}</p>
-          {#if progress?.files && mode === "code"}
-            <p class="count">{progress.files} arquivo{progress.files === 1 ? "" : "s"} explicado{progress.files === 1 ? "" : "s"}</p>
-          {/if}
-        </div>
+      <div class="status">
+        <span class="mono label">{link.replace("https://github.com/", "")}</span>
+        <h1>{speech}</h1>
+        {#if progress?.stage === "thinking" && progress.message}
+          <p class="thought">{progress.message}</p>
+        {/if}
+        {#if progress?.files && mode === "code"}
+          <span class="count">{progress.files} arquivo{progress.files === 1 ? "" : "s"} explicado{progress.files === 1 ? "" : "s"}</span>
+        {/if}
       </div>
-      <ul class="log">
-        {#each progressLog as l, i (l + i)}
-          <li>{l}</li>
-        {/each}
-      </ul>
-      <button class="btn" onclick={() => api.cancel()}>Cancelar</button>
+      {#if progressLog.length}
+        <ul class="log">
+          {#each progressLog as l, i (l + i)}
+            <li>{l}</li>
+          {/each}
+        </ul>
+      {/if}
+      <div><button class="btn" onclick={() => api.cancel()}>Cancelar</button></div>
     </main>
   {:else if session}
     <header class="topbar">
-      <button class="btn icon" onclick={() => (drawerOpen = !drawerOpen)} title="Lista de arquivos">☰ Arquivos</button>
+      <button class="btn" onclick={() => (drawerOpen = !drawerOpen)} title="Lista de arquivos">
+        <svg viewBox="0 0 14 14" aria-hidden="true"><path d="M2 3.5h10M2 7h10M2 10.5h10" /></svg>
+        Arquivos
+      </button>
       <div class="pr">
         <button class="pr-title" onclick={() => api.openURL(lastReviewUrl || session!.url)} title="Abrir no GitHub">
           {session.title}
         </button>
-        <span class="pr-meta">
-          {session.ref.owner}/{session.ref.repo}#{session.ref.number} · {session.author} · {session.headBranch} → {session.baseBranch}
-          · <b class="add">+{session.additions}</b> <b class="del">-{session.deletions}</b>
-        </span>
+        <span class="pr-ref">{session.ref.owner}/{session.ref.repo}#{session.ref.number}</span>
       </div>
-      <div class="modes" role="group" aria-label="Modo de revisor">
-        {#each modes as m (m.value)}
-          <button class:on={mode === m.value} aria-pressed={mode === m.value} title={m.hint} onclick={() => switchMode(m.value)}>
-            {modeLabel[m.value]}
-          </button>
-        {/each}
-      </div>
-      {#if session.fromCache}
-        <button class="btn" onclick={() => start(true)} title="A análise veio do cache para este commit">Reanalisar</button>
-      {/if}
-      <button class="btn" onclick={newPR}>Nova PR</button>
-    </header>
-
-    <section class="claude">
-      <img class="logo" src={logo} width="104" height="104" alt="" />
-      <div class="bubble">
-        <div class="bubble-head">
-          {#if blueprint && chapter && activePath === null}
-            <span class="sev none">{chapterIdx === 0 ? (prKindLabel[blueprint.kind] ?? "Arquitetura") : `Capítulo ${chapterIdx}`}</span>
-            <span class="fname plain">{chapter.kind === "flow" ? "Fluxo: " : ""}{chapter.title}</span>
-            {#if chapter.kind === "flow" && flowStep >= 0}<span class="why">passo {flowStep + 1} de {flowSteps}</span>{/if}
-          {:else if activePath}
-            {@const severity = entry?.severity ?? ""}
-            {#if !blueprint}<span class="sev {severity || 'none'}">{severityLabel[severity]}</span>{/if}
-            <span class="fname" title={activePath}>{entry ? short(activePath) : activePath}</span>
-            {#if entry?.why}<span class="why">{entry.why}</span>{/if}
-          {:else if activePath === null}
-            <span class="fname">Visão geral da PR</span>
-          {/if}
-          {#if backTo !== undefined}
-            <button class="back" onclick={goBack}>
-              ← voltar para {backTo === null ? (blueprint ? "o " + (chapter?.title ?? "tour").toLowerCase() : "a visão geral") : short(backTo)}
-            </button>
-          {/if}
-        </div>
-        <div class="speech-box" role="presentation" onclick={() => richText?.finish()}>
-          <p class="speech">
-            <RichText
-              bind:this={richText}
-              text={speech}
-              resolve={blueprint && activePath === null ? noLinks : resolve}
-              onlink={followLink}
-              instant={revisit && !blueprint}
-              ontyping={(t) => (typing = t)}
-            />
-          </p>
-        </div>
-        {#if activePath && (attention.length || references.length)}
-          <div class="extras">
-            {#if attention.length}
-              <button class="toggle" class:open={showAttention} onclick={() => (showAttention = !showAttention)}>
-                <span class="warn-dot">!</span>
-                {attention.length} ponto{attention.length === 1 ? "" : "s"} de atenção
-                <span class="caret">{showAttention ? "▾" : "▸"}</span>
+      <span class="mode-name">Modo {modeLabel[mode]}</span>
+      <div class="pop-anchor">
+        <button
+          class="btn square"
+          class:on={menuOpen}
+          aria-label="Mais ações"
+          aria-expanded={menuOpen}
+          onclick={(e) => {
+            e.stopPropagation();
+            keysOpen = false;
+            menuOpen = !menuOpen;
+          }}
+        >
+          <svg class="dots-icon" viewBox="0 0 14 14" aria-hidden="true"><circle cx="2.5" cy="7" r="1.2" /><circle cx="7" cy="7" r="1.2" /><circle cx="11.5" cy="7" r="1.2" /></svg>
+        </button>
+        {#if menuOpen}
+          <div class="menu" role="menu">
+            <span class="label">Modo do revisor</span>
+            {#each modes as m (m.value)}
+              <button role="menuitemradio" aria-checked={mode === m.value} class:on={mode === m.value} title={m.hint} onclick={() => switchMode(m.value)}>
+                <svg viewBox="0 0 14 14" aria-hidden="true">{#if mode === m.value}<path d="M2.5 7.5l3 3 6-7" />{/if}</svg>
+                {modeLabel[m.value]}
               </button>
-            {/if}
-            {#each references as r (r.path)}
-              {#if r.resolved}
-                <button class="ref" title={r.why} onclick={() => followLink(r.resolved!)}>
-                  <span class="ref-label">citado</span>{short(r.resolved)}
-                </button>
-              {:else}
-                <span class="ref missing" title="Não encontrei este arquivo no repositório. {r.why}">
-                  <span class="ref-label">citado</span>{r.path}
-                </span>
-              {/if}
             {/each}
+            <hr />
+            {#if session.fromCache}
+              <button role="menuitem" class="plain" onclick={() => start(true)} title="A análise veio do cache para este commit">Reanalisar</button>
+            {/if}
+            <button role="menuitem" class="plain" onclick={() => api.openURL(lastReviewUrl || session!.url)}>Abrir no GitHub</button>
+            <button role="menuitem" class="plain" onclick={newPR}>Nova PR</button>
+            <hr />
+            <button role="menuitem" onclick={() => (settingsOpen = true)}>
+              <svg class="gear" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" /></svg>
+              Configurações
+            </button>
           </div>
-          {#if showAttention && attention.length}
-            <div class="chips">
-              {#each attention as a}
-                <div class="chip">
-                  <button class="line" onclick={() => codeView?.revealLine(a.line)} title="Ir para a linha {a.line}">L{a.line}</button>
-                  <span><RichText text={a.note} {resolve} onlink={followLink} instant /></span>
-                </div>
-              {/each}
-            </div>
-          {/if}
         {/if}
       </div>
+    </header>
+
+    <section class="brief">
+      <!-- na visão geral do Arquiteto o título fica na própria tela, então a faixa só traz o texto -->
+      {#if !(blueprint && activePath === null && chapterIdx === 0 && backTo === undefined)}
+      <div class="brief-head">
+        {#if blueprint && chapter && activePath === null}
+          <h2>{chapter.kind === "flow" ? "Fluxo: " : ""}{chapter.title}</h2>
+        {:else if activePath}
+          {@const severity = entry?.severity ?? ""}
+          {#if !blueprint}<span class="sev {severity || 'none'}">{severityLabel[severity]}</span>{/if}
+          <span class="fname" title={activePath}>{activePath}</span>
+          {#if entry?.why}<span class="why">{entry.why}</span>{/if}
+        {:else}
+          <span class="label">
+            {session.author} · {session.headBranch} → {session.baseBranch} ·
+            <span class="add">+{session.additions}</span> <span class="del">−{session.deletions}</span>
+          </span>
+        {/if}
+        {#if backTo !== undefined}
+          <button class="link back" onclick={goBack}>
+            Voltar para {backTo === null ? (blueprint ? "o " + (chapter?.title ?? "tour").toLowerCase() : "a visão geral") : short(backTo)}
+          </button>
+        {/if}
+      </div>
+      {/if}
+      <p class="speech">
+        <RichText text={speech} resolve={blueprint && activePath === null ? noLinks : resolve} onlink={followLink} />
+      </p>
+      {#if activePath && (attention.length || references.length)}
+        <div class="extras">
+          {#if attention.length}
+            <button class="link attention" aria-expanded={showAttention} onclick={() => (showAttention = !showAttention)}>
+              {attention.length} ponto{attention.length === 1 ? "" : "s"} de atenção
+            </button>
+          {/if}
+          {#if references.length}
+            <span class="refs">
+              Citado:
+              {#each references as r (r.path)}
+                {#if r.resolved}
+                  <button class="link mono" title={r.why} onclick={() => followLink(r.resolved!)}>{short(r.resolved)}</button>
+                {:else}
+                  <span class="mono missing" title="Não encontrei este arquivo no repositório. {r.why}">{r.path}</span>
+                {/if}
+              {/each}
+            </span>
+          {/if}
+        </div>
+        {#if showAttention && attention.length}
+          <ul class="notes">
+            {#each attention as a}
+              <li>
+                <button class="link mono" onclick={() => codeView?.revealLine(a.line)} title="Ir para a linha {a.line}">L{a.line}</button>
+                <span><RichText text={a.note} {resolve} onlink={followLink} /></span>
+              </li>
+            {/each}
+          </ul>
+        {/if}
+      {/if}
     </section>
 
     <section class="stage">
-      <button
-        class="arrow"
-        onclick={() => go(-1)}
-        disabled={activePath === null && (!blueprint || (chapterIdx === 0 && flowStep < 0))}
-        aria-label="Anterior"
-      >
-        <svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7" /></svg>
-      </button>
-
-      <div class="center">
-        {#if blueprint && chapter && activePath === null}
+      {#if blueprint && chapter && activePath === null}
+        <div class="pane arch">
           <ArchitectView
             {blueprint}
             {session}
@@ -622,78 +660,60 @@
             onopenfile={followLink}
             onreview={() => (reviewOpen = true)}
           />
-        {:else if activePath === null}
-          <div class="overview">
-            {#if session.files.length === 0}
-              <p class="empty">Nada crítico nesta PR. Abra a lista de arquivos se quiser revisar mesmo assim.</p>
-            {/if}
-            {#each session.files as f, i (f.path)}
-              <button class="card" onclick={() => openPath(f.path)} style="animation-delay: {i * 50}ms">
-                <span class="idx">{i + 1}</span>
-                <span class="card-main">
-                  <span class="card-top">
+        </div>
+      {:else if activePath === null}
+        <div class="pane overview">
+          {#if session.files.length === 0}
+            <p class="empty">Nada crítico nesta PR. Abra a lista de arquivos se quiser revisar mesmo assim.</p>
+          {:else}
+            <ul class="files">
+              {#each session.files as f (f.path)}
+                <li>
+                  <button onclick={() => openPath(f.path)}>
                     <span class="sev {f.severity}">{severityLabel[f.severity]}</span>
-                    <span class="card-path">{f.path}</span>
-                  </span>
-                  <span class="card-why">{f.why}</span>
-                </span>
-                <span class="diff"><b>+{f.additions}</b> <i>-{f.deletions}</i></span>
-              </button>
-            {/each}
-            <p class="foot">
-              {session.skipped.length} descartados (testes, docs, gerados) · {session.others.length} alterados sem risco relevante
-            </p>
-          </div>
-        {:else if fileError}
-          <div class="overview"><p class="error">{fileError}</p></div>
-        {:else if file}
-          <CodeView
-            bind:this={codeView}
-            {file}
-            {drafts}
-            fullscreen={codeFullscreen}
-            onsavedraft={saveDraft}
-            onremovedraft={removeDraft}
-          />
-        {:else}
-          <div class="overview"><p class="empty">Carregando...</p></div>
-        {/if}
-      </div>
-
-      <button class="arrow" onclick={() => go(1)} aria-label="Próximo">
-        <svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7" /></svg>
-      </button>
+                    <span class="file-main">
+                      <span class="mono file-path">{f.path}</span>
+                      <span class="file-why">{f.why}</span>
+                    </span>
+                    <span class="mono diff"><span class="add">+{f.additions}</span> <span class="del">−{f.deletions}</span></span>
+                  </button>
+                </li>
+              {/each}
+            </ul>
+          {/if}
+          <p class="foot">
+            {session.skipped.length} descartados (testes, docs, gerados) · {session.others.length} alterados sem risco relevante
+          </p>
+        </div>
+      {:else if fileError}
+        <div class="pane overview"><p class="error-text">{fileError}</p></div>
+      {:else if file}
+        <CodeView
+          bind:this={codeView}
+          {file}
+          {drafts}
+          fullscreen={codeFullscreen}
+          onsavedraft={saveDraft}
+          onremovedraft={removeDraft}
+        />
+      {:else}
+        <div class="pane overview"><p class="empty">Carregando...</p></div>
+      {/if}
     </section>
 
     <footer class="bottombar">
-      <div class="dots">
-        {#if blueprint}
-          {#each chapters as c, i (i)}
-            <button
-              class="dot"
-              class:overview-dot={i === 0}
-              class:seen={i < chapterIdx}
-              class:current={activePath === null && i === chapterIdx}
-              onclick={() => {
-                if (activePath !== null) goChapter(0);
-                jumpChapter(i);
-              }}
-              title="{i === 0 ? '' : i + '. '}{c.title}"
-            ></button>
-          {/each}
-        {:else}
-          <button class="dot overview-dot" class:current={activePath === null} onclick={() => go(-index - 1)} title="Visão geral"></button>
-        {/if}
-        {#each tourFiles as f, i (f.path)}
-          <button
-            class="dot {f.severity}"
-            class:seen={visited.has(f.path)}
-            class:current={activePath === f.path}
-            onclick={() => openPath(f.path)}
-            title="{i + 1}. {f.path}"
-          ></button>
-        {/each}
-      </div>
+      <button
+        class="btn square"
+        onclick={() => go(-1)}
+        disabled={activePath === null && (!blueprint || (chapterIdx === 0 && flowStep < 0))}
+        aria-label="Anterior"
+        title="Anterior"
+      >
+        <svg viewBox="0 0 14 14" aria-hidden="true"><path d="M8.5 3L4.5 7l4 4" /></svg>
+      </button>
+      <button class="btn square" onclick={() => go(1)} aria-label="Próximo" title="Próximo">
+        <svg viewBox="0 0 14 14" aria-hidden="true"><path d="M5.5 3l4 4-4 4" /></svg>
+      </button>
       <span class="pos">
         {#if blueprint && activePath === null}
           {chapterIdx === 0 ? "Visão geral" : `Capítulo ${chapterIdx} de ${chapters.length - 1}`}
@@ -707,9 +727,66 @@
           Fora do tour
         {/if}
       </span>
-      <span class="hint">
-        {blueprint && activePath === null ? "← → ou hjkl andam pelos capítulos e pelos passos do fluxo" : "← → ou hjkl navegam · Enter abre o código em tela cheia, Esc sai · C comenta"}
-      </span>
+      <div class="steps">
+        {#if blueprint}
+          {#each chapters as c, i (i)}
+            <button
+              class="step"
+              class:seen={i < chapterIdx}
+              class:current={activePath === null && i === chapterIdx}
+              onclick={() => {
+                if (activePath !== null) goChapter(0);
+                jumpChapter(i);
+              }}
+              title="{i === 0 ? '' : i + '. '}{c.title}"
+              aria-label="{i === 0 ? '' : i + '. '}{c.title}"
+            ></button>
+          {/each}
+        {:else}
+          <button
+            class="step"
+            class:seen={activePath !== null}
+            class:current={activePath === null}
+            onclick={() => go(-index - 1)}
+            title="Visão geral"
+            aria-label="Visão geral"
+          ></button>
+        {/if}
+        {#each tourFiles as f, i (f.path)}
+          <button
+            class="step"
+            class:seen={visited.has(f.path)}
+            class:current={activePath === f.path}
+            onclick={() => openPath(f.path)}
+            title="{i + 1}. {f.path}"
+            aria-label="{i + 1}. {f.path}"
+          ></button>
+        {/each}
+      </div>
+      <span class="grow"></span>
+      <div class="pop-anchor">
+        <button
+          class="btn square"
+          class:on={keysOpen}
+          aria-label="Atalhos de teclado"
+          aria-expanded={keysOpen}
+          title="Atalhos de teclado"
+          onclick={(e) => {
+            e.stopPropagation();
+            menuOpen = false;
+            keysOpen = !keysOpen;
+          }}>?</button
+        >
+        {#if keysOpen}
+          <dl class="keys">
+            <div><dt>← → ou h j k l</dt><dd>Anterior e próximo</dd></div>
+            <div><dt>Enter</dt><dd>Código em tela cheia</dd></div>
+            <div><dt>Esc</dt><dd>Sair da tela cheia</dd></div>
+            <div><dt>C</dt><dd>Comentar a linha ou seleção</dd></div>
+            <div><dt>Alt + ← →</dt><dd>Trocar de arquivo dentro do código</dd></div>
+          </dl>
+        {/if}
+      </div>
       <MusicPlayer />
       <button class="btn primary" onclick={() => (reviewOpen = true)}>
         Enviar review{drafts.length ? ` (${drafts.length})` : ""}
@@ -733,8 +810,10 @@
 
     {#if error}
       <div class="toast" role="alert">
-        {error}
-        <button onclick={() => (error = "")}>×</button>
+        <span>{error}</span>
+        <button onclick={() => (error = "")} aria-label="Fechar aviso">
+          <svg viewBox="0 0 14 14" aria-hidden="true"><path d="M3 3l8 8M11 3l-8 8" /></svg>
+        </button>
       </div>
     {/if}
   {/if}
@@ -754,615 +833,557 @@
     display: flex;
     flex-direction: column;
   }
+  .mono {
+    font-family: var(--mono);
+  }
+  .grow {
+    flex: 1;
+  }
 
   .home-player {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-2);
     position: fixed;
-    top: 16px;
-    right: 18px;
+    top: var(--sp-4);
+    right: var(--sp-5);
     z-index: 10;
   }
 
-  /* Seletor de modo de revisor (home e topo do tour) */
-  .modes {
-    display: inline-flex;
+  /* Home e análise: uma coluna estreita, alinhada à esquerda */
+  .home,
+  .loading {
+    width: min(640px, 100%);
+    margin: 0 auto;
+    padding: 108px var(--sp-5) var(--sp-6);
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-6);
+    overflow: auto;
+    /* fundo sólido na coluna: as estrelas passam pelas laterais, nunca por trás do texto */
+    background: var(--bg);
+  }
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-3);
+  }
+  .logo {
+    display: block;
     flex-shrink: 0;
-    padding: 3px;
-    background: var(--panel);
-    border: 1px solid var(--border);
-    border-radius: 11px;
   }
-  .modes button {
-    border: none;
-    background: none;
-    color: var(--muted);
-    padding: 5px 13px;
-    border-radius: 8px;
-    font-size: 13px;
+  h1 {
+    margin: 0;
+    font-size: var(--fs-xl);
+    font-weight: 600;
+    line-height: 1.2;
   }
-  .modes button:hover {
-    color: var(--text);
+  .start {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-3);
   }
-  .modes button.on {
-    background: rgba(217, 119, 87, 0.22);
-    color: var(--text);
-    font-weight: 700;
+  .search {
+    display: flex;
+    gap: var(--sp-2);
+  }
+  .search .field,
+  .search .btn {
+    height: 44px;
+  }
+  .search .field {
+    flex: 1;
+    min-width: 0;
+    background: var(--surface);
+  }
+  .search .btn {
+    padding: 0 20px;
   }
   .mode-pick {
     display: flex;
     align-items: center;
-    gap: 12px;
-    margin-top: 12px;
-    width: 100%;
-    text-align: left;
-    font-size: 13px;
+    flex-wrap: wrap;
+    gap: var(--sp-3);
     color: var(--muted);
   }
-  .fname.plain {
-    font-family: var(--ui);
-    font-size: 14.5px;
-  }
-
-  /* Home */
-  .home {
-    margin: auto;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
-    padding: 24px;
-    width: min(720px, 100%);
-  }
-  h1 {
-    margin: 18px 0 6px;
-    font-size: 54px;
-    letter-spacing: -0.02em;
-    font-weight: 800;
-  }
-  h1 span {
-    background: linear-gradient(90deg, #f0a283, #b69cff, #8ab4ff);
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
-  }
-  .tagline {
-    color: var(--muted);
-    margin: 0 0 28px;
-    font-size: 16px;
-  }
-  .search {
-    display: flex;
-    gap: 10px;
-    width: 100%;
-    padding: 8px;
-    background: var(--panel);
-    border: 1px solid var(--border);
-    border-radius: 16px;
-    box-shadow: 0 0 60px rgba(120, 140, 255, 0.12);
-  }
-  .search input {
-    flex: 1;
-    background: transparent;
-    border: none;
-    outline: none;
-    color: var(--text);
-    font: 15px var(--mono);
-    padding: 10px 12px;
-  }
-  .search .btn {
-    padding: 10px 22px;
-    font-size: 14px;
-  }
-  .error {
-    color: #ff9b94;
-    margin-top: 16px;
-    white-space: pre-wrap;
-  }
-  .notice {
-    margin-top: 18px;
-    width: 100%;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    padding: 14px 16px;
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    background: var(--panel);
-    text-align: left;
-    font-size: 14px;
-  }
-  .notice p {
+  .error-text {
     margin: 0;
   }
-  .notice-actions {
+  .notice {
     display: flex;
-    gap: 8px;
-    justify-content: flex-end;
+    align-items: baseline;
     flex-wrap: wrap;
+    gap: var(--sp-2) var(--sp-4);
+    color: var(--muted);
+  }
+  .notice span {
+    flex: 1 1 320px;
   }
   .recent {
-    margin-top: 22px;
     display: flex;
+    align-items: baseline;
     flex-wrap: wrap;
-    gap: 8px;
-    justify-content: center;
-    align-items: center;
-    font-size: 12px;
+    gap: var(--sp-2) var(--sp-4);
     color: var(--muted);
   }
   .recent button {
-    background: rgba(255, 255, 255, 0.04);
-    border: 1px solid var(--border);
+    padding: 0;
+    border: none;
+    background: none;
+    color: var(--muted);
+    font: var(--fs-xs) var(--mono);
+    transition: color var(--ease);
+  }
+  .recent button:hover {
     color: var(--text);
-    border-radius: 999px;
-    padding: 4px 10px;
-    font: 12px var(--mono);
   }
 
-  /* Loading */
+  /* Análise */
   .loading {
-    margin: auto;
+    padding-top: 212px;
+    gap: var(--sp-5);
+  }
+  .status {
     display: flex;
     flex-direction: column;
-    align-items: center;
-    gap: 20px;
-    width: min(760px, 100%);
-    padding: 24px;
+    gap: var(--sp-1);
   }
-  .loading-row {
-    display: flex;
-    align-items: flex-start;
-    gap: 22px;
-    width: 100%;
+  .status h1 {
+    font-size: var(--fs-lg);
+    line-height: 1.4;
+  }
+  .thought {
+    margin: 0;
+    color: var(--text-2);
+  }
+  .count {
+    color: var(--muted);
   }
   .log {
     list-style: none;
-    padding: 0;
     margin: 0;
-    width: 100%;
-    font: 12.5px var(--mono);
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font: var(--fs-xs) var(--mono);
     color: var(--muted);
-  }
-  .log li::before {
-    content: "› ";
-    color: var(--claude);
   }
   .log li:last-child {
     color: var(--text);
   }
-  .count {
-    margin: 8px 0 0;
-    font-size: 12px;
-    color: var(--claude-soft);
-  }
 
-  /* Bubble */
-  .bubble {
-    position: relative;
-    flex: 1;
-    min-width: 0;
-    background: var(--panel);
-    border: 1px solid var(--border);
-    border-radius: 16px;
-    padding: 12px 16px;
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.35);
-  }
-  .bubble::before {
-    content: "";
-    position: absolute;
-    left: -9px;
-    top: 34px;
-    width: 16px;
-    height: 16px;
-    background: inherit;
-    border-left: 1px solid var(--border);
-    border-bottom: 1px solid var(--border);
-    transform: rotate(45deg);
-  }
-  .bubble.big {
-    padding: 18px 20px;
-  }
-  .bubble-head {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin-bottom: 6px;
-    min-width: 0;
-  }
-  .fname {
-    font-family: var(--mono);
-    font-weight: 700;
-    font-size: 13.5px;
-    white-space: nowrap;
-  }
-  .why {
-    color: var(--muted);
-    font-size: 12.5px;
-    font-style: italic;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  .speech-box {
-    display: block;
-    width: 100%;
-  }
-  .back {
-    margin-left: auto;
-    background: none;
-    border: 1px solid var(--border);
-    color: #9cc0f5;
-    border-radius: 999px;
-    padding: 2px 10px;
-    font-size: 12px;
-    white-space: nowrap;
-  }
-  .back:hover {
-    border-color: rgba(156, 192, 245, 0.5);
-  }
-  .extras {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 6px;
-    margin-top: 10px;
-  }
-  .toggle {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    background: rgba(227, 179, 65, 0.07);
-    border: 1px solid rgba(227, 179, 65, 0.28);
-    color: #e9d49b;
-    border-radius: 999px;
-    padding: 3px 10px 3px 4px;
-    font-size: 12px;
-  }
-  .toggle:hover,
-  .toggle.open {
-    background: rgba(227, 179, 65, 0.14);
-  }
-  .warn-dot {
-    width: 16px;
-    height: 16px;
-    border-radius: 50%;
-    background: #c99a35;
-    color: #16171b;
-    display: grid;
-    place-items: center;
-    font-weight: 800;
-    font-size: 11px;
-  }
-  .toggle .caret {
-    color: var(--muted);
-  }
-  .ref {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    background: rgba(91, 140, 214, 0.1);
-    border: 1px solid rgba(91, 140, 214, 0.3);
-    color: #b9d0f3;
-    border-radius: 999px;
-    padding: 3px 10px 3px 4px;
-    font: 12px var(--mono);
-  }
-  .ref:hover {
-    background: rgba(91, 140, 214, 0.2);
-  }
-  .ref.missing {
-    opacity: 0.6;
-    border-style: dashed;
-    cursor: help;
-  }
-  .ref-label {
-    font: 700 10px var(--ui);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    background: rgba(91, 140, 214, 0.25);
-    border-radius: 999px;
-    padding: 1px 6px;
-  }
-  .speech {
-    margin: 0;
-    font-size: 14.5px;
-    line-height: 1.55;
-    white-space: pre-wrap;
-    max-height: 132px;
-    overflow: auto;
-  }
-  .chips {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    margin-top: 10px;
-  }
-  .chip {
-    display: flex;
-    gap: 8px;
-    align-items: baseline;
-    background: rgba(227, 179, 65, 0.07);
-    border: 1px solid rgba(227, 179, 65, 0.25);
-    color: #e9d9ad;
-    border-radius: 8px;
-    padding: 4px 9px;
-    font-size: 12px;
-    max-width: 100%;
-  }
-  .chip .line {
-    flex-shrink: 0;
-    background: none;
-    border: none;
-    padding: 0;
-    font: 700 12px var(--mono);
-    color: var(--yellow);
-    text-decoration: underline;
-    text-decoration-color: rgba(227, 179, 65, 0.4);
-    text-underline-offset: 2px;
-  }
-
-  /* Tour */
+  /* Tour: barra do topo */
   .topbar {
     display: flex;
     align-items: center;
-    gap: 12px;
-    padding: 12px 20px 0;
+    gap: var(--sp-4);
+    height: 52px;
+    padding: 0 var(--sp-4);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
   }
   .pr {
     flex: 1;
     min-width: 0;
     display: flex;
-    flex-direction: column;
+    align-items: baseline;
+    gap: var(--sp-3);
   }
   .pr-title {
-    background: none;
-    border: none;
+    min-width: 0;
     padding: 0;
+    border: none;
+    background: none;
     color: var(--text);
-    font-size: 15px;
-    font-weight: 700;
+    font-size: var(--fs-sm);
+    font-weight: 600;
     text-align: left;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
   .pr-title:hover {
-    color: var(--accent);
+    text-decoration: underline;
+    text-underline-offset: 3px;
   }
-  .pr-meta {
-    font-size: 12px;
+  .pr-ref {
+    font: var(--fs-xs) var(--mono);
+    color: var(--muted);
+    white-space: nowrap;
+  }
+  .mode-name {
+    color: var(--muted);
+    white-space: nowrap;
+  }
+  .btn.on {
+    background: var(--selected);
+    border-color: var(--primary);
+  }
+  /* o ícone vem numa grade de 24: traço mais grosso para igualar o peso dos ícones de 14 */
+  svg.gear {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .dots-icon {
+    fill: currentColor;
+    stroke: none;
+  }
+
+  /* Menus suspensos */
+  .pop-anchor {
+    position: relative;
+    display: flex;
+  }
+  .menu,
+  .keys {
+    position: absolute;
+    right: 0;
+    z-index: var(--z-popover);
+    margin: 0;
+    border: 1px solid var(--border-strong);
+    border-radius: var(--r-md);
+    background: var(--surface);
+    box-shadow: var(--shadow);
+  }
+  .menu {
+    top: calc(100% + 8px);
+    width: 240px;
+    padding: 6px;
+    display: flex;
+    flex-direction: column;
+  }
+  .menu .label {
+    padding: var(--sp-2) 10px var(--sp-1);
+  }
+  .menu button {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-2);
+    height: 36px;
+    padding: 0 10px;
+    border: none;
+    border-radius: var(--r-sm);
+    background: none;
+    color: var(--text);
+    font-size: var(--fs-sm);
+    text-align: left;
+    transition: background var(--ease);
+  }
+  .menu button:hover,
+  .menu button.on {
+    background: var(--selected);
+  }
+  .menu svg {
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.5;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .menu hr {
+    width: 100%;
+    height: 1px;
+    margin: 6px 0;
+    border: none;
+    background: var(--border);
+  }
+  .keys {
+    bottom: calc(100% + 8px);
+    width: 340px;
+    padding: var(--sp-2) var(--sp-4);
+  }
+  .keys div {
+    display: flex;
+    align-items: baseline;
+    gap: var(--sp-4);
+    padding: var(--sp-2) 0;
+  }
+  .keys div + div {
+    border-top: 1px solid var(--border);
+  }
+  .keys dt {
+    width: 120px;
+    flex-shrink: 0;
+    font: var(--fs-xs) var(--mono);
+  }
+  .keys dd {
+    margin: 0;
+    color: var(--text-2);
+  }
+
+  /* Tour: explicação do revisor */
+  .brief {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-2);
+    padding: 20px var(--sp-5);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+    /* o texto aparece inteiro; só um resumo muito longo rola, e aí a barra fica na borda da janela */
+    max-height: 40vh;
+    overflow-y: auto;
+  }
+  .brief-head {
+    display: flex;
+    align-items: baseline;
+    gap: var(--sp-3);
+    min-width: 0;
+  }
+  .brief h2 {
+    margin: 0;
+    font-size: var(--fs-lg);
+    font-weight: 600;
+    line-height: 1.4;
+  }
+  .fname {
+    font-family: var(--mono);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    direction: rtl;
+    text-align: left;
+    flex-shrink: 1;
+    min-width: 80px;
+  }
+  .why {
+    flex: 1;
+    min-width: 0;
     color: var(--muted);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
-  .add {
-    color: var(--green);
-    font-weight: 400;
+  .back {
+    margin-left: auto;
+    white-space: nowrap;
   }
-  .del {
-    color: var(--red);
-    font-weight: 400;
+  .speech {
+    margin: 0;
+    max-width: 880px;
+    font-size: var(--fs-md);
+    white-space: pre-wrap;
   }
-  .logo {
-    flex-shrink: 0;
-    display: block;
-  }
-  .claude {
+  .extras {
     display: flex;
-    /* topo: a logo fica parada enquanto o texto do balão cresce */
-    align-items: flex-start;
-    gap: 18px;
-    padding: 12px 84px 10px 40px;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: var(--sp-2) var(--sp-5);
+    color: var(--muted);
   }
+  .attention::before {
+    content: "";
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    margin-right: 6px;
+    border-radius: 50%;
+    background: var(--yellow);
+  }
+  .refs {
+    display: inline-flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: var(--sp-1) var(--sp-3);
+  }
+  .refs .mono {
+    font-size: var(--fs-xs);
+  }
+  .missing {
+    text-decoration: line-through;
+    cursor: help;
+  }
+  .notes {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    max-width: 880px;
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-1);
+  }
+  .notes li {
+    display: flex;
+    align-items: baseline;
+    gap: var(--sp-3);
+    color: var(--text-2);
+  }
+  .notes .link {
+    flex-shrink: 0;
+    font-size: var(--fs-xs);
+    color: var(--yellow);
+  }
+
+  /* Tour: conteúdo */
   .stage {
     flex: 1;
     min-height: 0;
     display: flex;
-    align-items: stretch;
-    gap: 14px;
-    padding: 0 14px;
+    flex-direction: column;
   }
-  .center {
+  .pane {
     flex: 1;
-    min-width: 0;
     min-height: 0;
+    overflow: auto;
+    padding: var(--sp-6) var(--sp-5);
   }
-  .arrow {
-    align-self: center;
-    width: 54px;
-    height: 54px;
-    flex-shrink: 0;
-    border-radius: 50%;
-    border: 1px solid var(--border);
-    background: var(--panel);
-    display: grid;
-    place-items: center;
-    transition: transform 0.15s, background 0.15s, border-color 0.15s;
-  }
-  .arrow svg {
-    width: 26px;
-    height: 26px;
-    fill: none;
-    stroke: var(--text);
-    stroke-width: 2.4;
-    stroke-linecap: round;
-    stroke-linejoin: round;
-  }
-  .arrow:hover:not(:disabled) {
-    transform: scale(1.08);
-    background: rgba(217, 119, 87, 0.2);
-    border-color: rgba(217, 119, 87, 0.6);
+  /* as telas do Arquiteto têm rolagem própria: aqui só entra a margem */
+  .pane.arch {
+    overflow: hidden;
+    padding-bottom: 0;
   }
   .overview {
-    height: 100%;
-    overflow: auto;
-    padding: 8px 4px;
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: var(--sp-5);
+    width: min(880px + 2 * var(--sp-5), 100%);
+    margin: 0 auto;
   }
-  .card {
+  .files {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  .files li {
+    border-top: 1px solid var(--border);
+  }
+  .files li:last-child {
+    border-bottom: 1px solid var(--border);
+  }
+  .files button {
     display: flex;
-    align-items: center;
-    gap: 14px;
+    align-items: baseline;
+    gap: var(--sp-4);
     width: 100%;
-    background: var(--panel);
-    border: 1px solid var(--border);
-    border-radius: 14px;
-    padding: 14px 16px;
+    padding: 14px var(--sp-2);
+    border: none;
+    background: none;
     color: var(--text);
+    font-size: var(--fs-sm);
     text-align: left;
-    animation: rise 0.35s ease-out both;
-    transition: border-color 0.15s, transform 0.15s;
+    transition: background var(--ease);
   }
-  .card:hover {
-    border-color: rgba(217, 119, 87, 0.55);
-    transform: translateX(4px);
+  .files button:hover {
+    background: var(--surface);
   }
-  @keyframes rise {
-    from {
-      opacity: 0;
-      transform: translateY(10px);
-    }
-  }
-  .idx {
-    width: 30px;
-    height: 30px;
-    border-radius: 50%;
-    display: grid;
-    place-items: center;
-    background: rgba(217, 119, 87, 0.15);
-    color: var(--claude-soft);
-    font-weight: 800;
+  .files .sev {
+    width: 72px;
     flex-shrink: 0;
   }
-  .card-main {
+  .file-main {
     flex: 1;
     min-width: 0;
     display: flex;
     flex-direction: column;
-    gap: 4px;
   }
-  .card-top {
-    display: flex;
-    gap: 10px;
-    align-items: center;
-    min-width: 0;
-  }
-  .card-path {
-    font-family: var(--mono);
-    font-size: 13px;
+  .file-path {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
-  .card-why {
-    font-size: 13px;
+  .file-why {
     color: var(--muted);
   }
   .diff {
-    font-family: var(--mono);
-    font-size: 12px;
+    font-size: var(--fs-xs);
     white-space: nowrap;
-  }
-  .diff b {
-    color: var(--green);
-    font-weight: 400;
-  }
-  .diff i {
-    color: var(--red);
-    font-style: normal;
   }
   .foot,
   .empty {
+    margin: 0;
     color: var(--muted);
-    font-size: 13px;
-    text-align: center;
   }
+
+  /* Tour: rodapé */
   .bottombar {
     display: flex;
     align-items: center;
-    gap: 16px;
-    padding: 12px 20px 14px;
+    gap: var(--sp-4);
+    height: 56px;
+    padding: 0 var(--sp-4);
+    border-top: 1px solid var(--border);
+    flex-shrink: 0;
   }
-  .dots {
-    display: flex;
-    gap: 6px;
-    align-items: center;
-    flex-wrap: wrap;
-  }
-  .dot {
-    width: 12px;
-    height: 12px;
-    border-radius: 50%;
-    border: 1.5px solid rgba(255, 255, 255, 0.25);
-    background: transparent;
-    padding: 0;
-    transition: transform 0.15s;
-  }
-  .dot.critical {
-    border-color: var(--red);
-  }
-  .dot.high {
-    border-color: var(--yellow);
-  }
-  .dot.medium {
-    border-color: var(--accent);
-  }
-  .dot.seen.critical {
-    background: var(--red);
-  }
-  .dot.seen.high {
-    background: var(--yellow);
-  }
-  .dot.seen.medium {
-    background: var(--accent);
-  }
-  .dot.current {
-    transform: scale(1.5);
-    box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
-  }
-  .overview-dot {
-    border-radius: 3px;
-    border-color: var(--claude);
-  }
-  .overview-dot.current {
-    background: var(--claude);
+  .bottombar > .btn.square + .btn.square {
+    margin-left: calc(var(--sp-2) - var(--sp-4));
   }
   .pos {
-    font-size: 13px;
-    font-weight: 700;
+    font-weight: 600;
     white-space: nowrap;
   }
-  .hint {
-    flex: 1;
-    font-size: 12px;
-    color: var(--muted);
-    text-align: right;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+  .steps {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-1);
+    min-width: 0;
   }
+  /* o botão é mais alto que a barra desenhada, para o alvo do clique não ter 4 px */
+  .step {
+    width: 24px;
+    min-width: 6px;
+    flex-shrink: 1;
+    height: 20px;
+    padding: 0;
+    border: none;
+    background: none;
+  }
+  .step::before {
+    content: "";
+    display: block;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--border-strong);
+    transition: background var(--ease);
+  }
+  .step.seen::before {
+    background: var(--muted);
+  }
+  .step.current::before,
+  .step:hover::before {
+    background: var(--primary);
+  }
+
   .toast {
     position: fixed;
-    bottom: 70px;
+    bottom: 72px;
     left: 50%;
-    transform: translateX(-50%);
-    z-index: 60;
-    background: rgba(80, 20, 20, 0.95);
-    border: 1px solid var(--red);
-    border-radius: 10px;
-    padding: 10px 14px;
-    font-size: 13px;
+    translate: -50% 0;
+    z-index: var(--z-toast);
     display: flex;
-    gap: 12px;
     align-items: center;
-    max-width: 80vw;
+    gap: var(--sp-3);
+    max-width: min(560px, 80vw);
+    padding: 10px var(--sp-2) 10px var(--sp-4);
+    border: 1px solid var(--red);
+    border-radius: var(--r-sm);
+    background: var(--surface);
   }
   .toast button {
-    background: none;
+    width: 28px;
+    height: 28px;
+    flex-shrink: 0;
+    display: grid;
+    place-items: center;
     border: none;
+    border-radius: 4px;
+    background: none;
     color: var(--text);
-    font-size: 18px;
+  }
+  .toast svg {
+    width: 12px;
+    height: 12px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.5;
+    stroke-linecap: round;
   }
 </style>
