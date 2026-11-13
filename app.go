@@ -31,6 +31,8 @@ type App struct {
 	store   *config.Store
 	watcher *watcher.Watcher
 	tray    *tray.Tray
+	version string
+	update  updateState
 
 	mu         sync.Mutex
 	cancel     context.CancelFunc
@@ -51,8 +53,8 @@ type session struct {
 	content  sync.Map // path -> string
 }
 
-func NewApp(library *music.Store, store *config.Store) *App {
-	return &App{music: library, store: store, inflight: map[string]chan struct{}{}}
+func NewApp(library *music.Store, store *config.Store, version string) *App {
+	return &App{music: library, store: store, version: version, inflight: map[string]chan struct{}{}}
 }
 
 func (a *App) ListMusic() music.Library {

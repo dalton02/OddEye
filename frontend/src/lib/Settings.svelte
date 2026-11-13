@@ -23,7 +23,26 @@
 
   const intervals = [2, 5, 10, 15, 30, 60];
 
+  let version = $state("");
+  let updateStatus = $state("");
+  let checkingUpdate = $state(false);
+
+  /* se houver versão nova, o backend emite update:available e o App abre o modal */
+  async function checkUpdate(): Promise<void> {
+    checkingUpdate = true;
+    updateStatus = "";
+    try {
+      const u = await api.checkUpdate();
+      updateStatus = u ? `Versão ${u.version} disponível.` : "Você já está na versão mais recente.";
+    } catch (e) {
+      updateStatus = errorMessage(e);
+    } finally {
+      checkingUpdate = false;
+    }
+  }
+
   onMount(async () => {
+    api.version().then((v) => (version = v));
     try {
       const s = await api.getSettings();
       config = s.config;
@@ -216,6 +235,14 @@
           Diga o que o revisor deve priorizar, o tom e o idioma. As regras de formato da resposta (caminhos, linhas,
           JSON) são do app e entram sempre, então nada aqui quebra o tour. Trocar as instruções gera uma análise nova.
         </p>
+      </section>
+
+      <section class="version">
+        <span>Oddeye {version === "dev" ? "(desenvolvimento)" : `v${version}`}</span>
+        <button class="btn" onclick={checkUpdate} disabled={checkingUpdate || version === "dev"}>
+          {checkingUpdate ? "Procurando..." : "Procurar atualizações"}
+        </button>
+        {#if updateStatus}<span class="muted small">{updateStatus}</span>{/if}
       </section>
 
       {#if error}<p class="error">{error}</p>{/if}
@@ -471,6 +498,16 @@
   .grid {
     display: grid;
     grid-template-columns: minmax(0, 220px);
+  }
+  .version {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    font-size: 13px;
+  }
+  .version .muted {
+    margin: 0;
   }
   footer {
     display: flex;

@@ -60,6 +60,7 @@ export namespace config {
 	    model: string;
 	    launchAtLogin: boolean;
 	    autostartNoticeSeen: boolean;
+	    skippedVersion: string;
 	    notifyOwnPRs: boolean;
 	    includeDrafts: boolean;
 	
@@ -75,6 +76,7 @@ export namespace config {
 	        this.model = source["model"];
 	        this.launchAtLogin = source["launchAtLogin"];
 	        this.autostartNoticeSeen = source["autostartNoticeSeen"];
+	        this.skippedVersion = source["skippedVersion"];
 	        this.notifyOwnPRs = source["notifyOwnPRs"];
 	        this.includeDrafts = source["includeDrafts"];
 	    }
@@ -411,6 +413,28 @@ export namespace main {
 		    }
 		    return a;
 		}
+	}
+	export class UpdateInfo {
+	    current: string;
+	    version: string;
+	    notes: string;
+	    pageUrl: string;
+	    needsPassword: boolean;
+	    automatic: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new UpdateInfo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.current = source["current"];
+	        this.version = source["version"];
+	        this.notes = source["notes"];
+	        this.pageUrl = source["pageUrl"];
+	        this.needsPassword = source["needsPassword"];
+	        this.automatic = source["automatic"];
+	    }
 	}
 
 }

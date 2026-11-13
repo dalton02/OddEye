@@ -22,12 +22,20 @@ export function CheckNow() {
   return window['go']['main']['App']['CheckNow']();
 }
 
+export function CheckUpdate() {
+  return window['go']['main']['App']['CheckUpdate']();
+}
+
 export function ChooseMusicFolder() {
   return window['go']['main']['App']['ChooseMusicFolder']();
 }
 
 export function GetSettings() {
   return window['go']['main']['App']['GetSettings']();
+}
+
+export function InstallUpdate() {
+  return window['go']['main']['App']['InstallUpdate']();
 }
 
 export function ListMusic() {
@@ -50,8 +58,16 @@ export function OpenMusicFolder() {
   return window['go']['main']['App']['OpenMusicFolder']();
 }
 
+export function OpenReleasePage() {
+  return window['go']['main']['App']['OpenReleasePage']();
+}
+
 export function OpenURL(arg1) {
   return window['go']['main']['App']['OpenURL'](arg1);
+}
+
+export function PendingUpdate() {
+  return window['go']['main']['App']['PendingUpdate']();
 }
 
 export function RemoveDraft(arg1) {
@@ -66,8 +82,16 @@ export function SaveSettings(arg1) {
   return window['go']['main']['App']['SaveSettings'](arg1);
 }
 
+export function SkipUpdate(arg1) {
+  return window['go']['main']['App']['SkipUpdate'](arg1);
+}
+
 export function SubmitReview(arg1, arg2) {
   return window['go']['main']['App']['SubmitReview'](arg1, arg2);
+}
+
+export function Version() {
+  return window['go']['main']['App']['Version']();
 }
 
 export function WatcherState() {

@@ -38,6 +38,7 @@ func (a *App) startup(ctx context.Context) {
 		OnSettings: func() { a.showWindow(); runtime.EventsEmit(a.ctx, eventShowSettings) },
 		OnQuit:     func() { runtime.Quit(a.ctx) },
 		OnPR:       func(p gh.OpenPR) { a.openPR(p.Ref) },
+		OnUpdate:   a.showUpdate,
 	})
 	a.watcher = watcher.New(a.store, a.gh, a.notifyNew, func(s watcher.Snapshot) {
 		a.tray.Update(s)
@@ -50,6 +51,7 @@ func (a *App) startup(ctx context.Context) {
 		_ = autostart.Set(true)
 	}
 	go a.watcher.Run(ctx)
+	go a.runUpdateChecks(ctx)
 }
 
 func (a *App) shutdown(ctx context.Context) {
@@ -70,6 +72,10 @@ func (a *App) startNotifications() {
 	}
 	runtime.OnNotificationResponse(a.ctx, func(r runtime.NotificationResult) {
 		if r.Error != nil {
+			return
+		}
+		if _, ok := r.Response.UserInfo["update"]; ok {
+			a.showUpdate()
 			return
 		}
 		if raw, ok := r.Response.UserInfo["ref"].(string); ok {

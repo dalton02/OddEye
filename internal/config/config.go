@@ -39,8 +39,10 @@ type Config struct {
 	LaunchAtLogin       bool         `json:"launchAtLogin"`
 	// AutostartNoticeSeen marca que o usuário já viu o aviso de que o app abre junto com o sistema.
 	AutostartNoticeSeen bool `json:"autostartNoticeSeen"`
-	NotifyOwnPRs        bool `json:"notifyOwnPRs"`
-	IncludeDrafts       bool `json:"includeDrafts"`
+	// SkippedVersion é a versão que o usuário pediu para pular; o aviso volta só na próxima.
+	SkippedVersion string `json:"skippedVersion"`
+	NotifyOwnPRs   bool   `json:"notifyOwnPRs"`
+	IncludeDrafts  bool   `json:"includeDrafts"`
 }
 
 // Normalize corrige valores fora da faixa e remove repositórios repetidos ou vazios.

@@ -22,6 +22,7 @@ const (
 	idCheck    = 21
 	idSettings = 22
 	idQuit     = 23
+	idUpdate   = 24
 	separator  = -1
 )
 
@@ -31,6 +32,7 @@ type Callbacks struct {
 	OnSettings func()
 	OnQuit     func()
 	OnPR       func(gh.OpenPR)
+	OnUpdate   func()
 }
 
 // menuItem é uma entrada do menu: o backend de cada SO só sabe criar, renomear e esconder itens.
@@ -63,6 +65,7 @@ func layout() []menuItem {
 	}
 	return append(items,
 		menuItem{id: separator},
+		menuItem{id: idUpdate},
 		menuItem{id: idOpen, title: "Abrir Oddeye", visible: true},
 		menuItem{id: idCheck, title: "Verificar agora", visible: true},
 		menuItem{id: idSettings, title: "Configurações", visible: true},
@@ -91,6 +94,10 @@ func (t *Tray) clicked(id int) {
 		t.cb.OnSettings()
 	case id == idQuit:
 		t.cb.OnQuit()
+	case id == idUpdate:
+		if t.cb.OnUpdate != nil {
+			t.cb.OnUpdate()
+		}
 	case id >= idFirstPR && id < idFirstPR+MaxPRs:
 		t.mu.Lock()
 		i := id - idFirstPR
@@ -103,6 +110,15 @@ func (t *Tray) clicked(id int) {
 			t.cb.OnPR(*p)
 		}
 	}
+}
+
+// SetUpdate mostra "Atualização disponível" no menu; versão vazia esconde o item.
+func (t *Tray) SetUpdate(version string) {
+	if version == "" {
+		t.b.setItem(idUpdate, "", false)
+		return
+	}
+	t.b.setItem(idUpdate, "Atualização disponível (v"+version+")", true)
 }
 
 // Update reflete o estado do watcher no menu e no ícone.

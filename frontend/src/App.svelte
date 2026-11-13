@@ -9,6 +9,7 @@
   import ReviewModal from "./lib/ReviewModal.svelte";
   import MusicPlayer from "./lib/MusicPlayer.svelte";
   import Settings from "./lib/Settings.svelte";
+  import UpdateModal from "./lib/UpdateModal.svelte";
   import Inbox from "./lib/Inbox.svelte";
   import Setup from "./lib/Setup.svelte";
   import { player } from "./lib/player.svelte";
@@ -25,7 +26,8 @@
     type FileView,
     type Progress,
     type ReviewEvent,
-    type Session
+    type Session,
+    type UpdateInfo
   } from "./lib/api";
 
   type Phase = "home" | "loading" | "tour";
@@ -35,6 +37,7 @@
   let deps = $state<Deps | null>(null);
   let watcherSnap = $state<WatcherSnapshot | null>(null);
   let settingsOpen = $state(false);
+  let updateInfo = $state<UpdateInfo | null>(null);
   let error = $state("");
   let progress = $state<Progress | null>(null);
   let progressLog = $state<string[]>([]);
@@ -76,6 +79,9 @@
 
   onMount(() => {
     api.checkDeps().then((d) => (deps = d));
+    api.pendingUpdate().then((u) => {
+      if (u) updateInfo = u;
+    });
     api.getSettings().then((v) => {
       if (v.config.launchAtLogin && !v.config.autostartNoticeSeen) autostartNotice = v.config;
     });
@@ -95,6 +101,7 @@
       }),
       api.onWatcher((s) => (watcherSnap = s)),
       api.onShowSettings(() => (settingsOpen = true)),
+      api.onUpdateAvailable((u) => (updateInfo = u)),
       /* clique na notificação ou no menu da bandeja: abre a PR direto no tour (rascunhos ficam em disco) */
       api.onOpenPR((ref) => {
         if (phase === "loading") return;
@@ -553,6 +560,9 @@
   {/if}
   {#if settingsOpen}
     <Settings onclose={() => (settingsOpen = false)} />
+  {/if}
+  {#if updateInfo}
+    <UpdateModal info={updateInfo} onclose={() => (updateInfo = null)} />
   {/if}
 </div>
 

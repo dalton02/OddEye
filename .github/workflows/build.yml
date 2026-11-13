@@ -74,7 +74,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev
-          wails build -platform ${{ matrix.platform }} -tags webkit2_41 -trimpath
+          wails build -platform ${{ matrix.platform }} -tags webkit2_41 -trimpath -ldflags "-X main.version=${VERSION}"
           go install github.com/goreleaser/nfpm/v2/cmd/nfpm@v2.41.0
           nfpm package --config build/linux/nfpm.yaml --packager deb --target "build/bin/oddeye_${VERSION}_amd64.deb"
           nfpm package --config build/linux/nfpm.yaml --packager rpm --target "build/bin/oddeye-${VERSION}.x86_64.rpm"
@@ -87,7 +87,7 @@ jobs:
         env:
           VERSION: ${{ steps.version.outputs.version }}
         run: |
-          wails build -platform ${{ matrix.platform }} -nsis -trimpath
+          wails build -platform ${{ matrix.platform }} -nsis -trimpath -ldflags "-X main.version=${VERSION}"
           mv build/bin/oddeye-amd64-installer.exe "build/bin/Oddeye-${VERSION}-windows-setup.exe"
           mv build/bin/oddeye.exe "build/bin/oddeye-${VERSION}-windows-portable.exe"
 
@@ -96,10 +96,12 @@ jobs:
         env:
           VERSION: ${{ steps.version.outputs.version }}
         run: |
-          wails build -platform ${{ matrix.platform }} -trimpath
+          wails build -platform ${{ matrix.platform }} -trimpath -ldflags "-X main.version=${VERSION}"
           # Sem conta de desenvolvedor Apple: assinatura ad-hoc, senão o Apple Silicon recusa o binário universal.
           codesign --force --deep --sign - "build/bin/Oddeye.app"
           hdiutil create -volname "Oddeye" -srcfolder "build/bin/Oddeye.app" -ov -format UDZO "build/bin/Oddeye-${VERSION}-macos-universal.dmg"
+          # O atualizador do app baixa o .zip (o .dmg é para a primeira instalação).
+          ditto -c -k --keepParent "build/bin/Oddeye.app" "build/bin/Oddeye-${VERSION}-macos-universal.zip"
           rm -rf "build/bin/Oddeye.app"
 
       - uses: actions/upload-artifact@v4

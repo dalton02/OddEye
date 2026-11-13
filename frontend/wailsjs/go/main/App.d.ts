@@ -17,9 +17,13 @@ export function CheckDeps():Promise<main.DepsStatus>;
 
 export function CheckNow():Promise<void>;
 
+export function CheckUpdate():Promise<main.UpdateInfo>;
+
 export function ChooseMusicFolder():Promise<music.Library>;
 
 export function GetSettings():Promise<main.SettingsView>;
+
+export function InstallUpdate():Promise<void>;
 
 export function ListMusic():Promise<music.Library>;
 
@@ -31,7 +35,11 @@ export function OpenFile(arg1:string):Promise<main.FileView>;
 
 export function OpenMusicFolder():Promise<void>;
 
+export function OpenReleasePage():Promise<void>;
+
 export function OpenURL(arg1:string):Promise<void>;
+
+export function PendingUpdate():Promise<main.UpdateInfo>;
 
 export function RemoveDraft(arg1:string):Promise<Array<review.Draft>>;
 
@@ -39,6 +47,10 @@ export function SaveDraft(arg1:main.DraftInput):Promise<Array<review.Draft>>;
 
 export function SaveSettings(arg1:config.Config):Promise<config.Config>;
 
+export function SkipUpdate(arg1:string):Promise<void>;
+
 export function SubmitReview(arg1:string,arg2:string):Promise<string>;
+
+export function Version():Promise<string>;
 
 export function WatcherState():Promise<watcher.Snapshot>;

@@ -29,6 +29,10 @@ Unicode true
 ## !define UNINST_KEY_NAME     "UninstKeyInRegistry"  # Default "${INFO_COMPANYNAME}${INFO_PRODUCTNAME}"
 ####
 ## !define REQUEST_EXECUTION_LEVEL "admin"            # Default "admin"  see also https://nsis.sourceforge.io/Docs/Chapter4.html
+# Oddeye: instala por usuário (em %LOCALAPPDATA%\Programs\Oddeye), sem pedir administrador. Assim o
+# atualizador do app consegue trocar o .exe sozinho, sem o aviso do UAC.
+!define REQUEST_EXECUTION_LEVEL "user"
+!define WAILS_INSTALL_SCOPE "user"
 ####
 ## Include the wails tools
 ####

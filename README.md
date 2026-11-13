@@ -14,7 +14,7 @@ Baixe o instalador do seu sistema na página de [Releases](../../releases):
 
 | Sistema | Arquivo | Observação |
 | ------- | ------- | ---------- |
-| Windows 10/11 | `Oddeye-<versão>-windows-setup.exe` | Também há um `.exe` portátil. O WebView2 já vem no Windows. |
+| Windows 10/11 | `Oddeye-<versão>-windows-setup.exe` | Instala só para o seu usuário, sem pedir administrador. Também há um `.exe` portátil. O WebView2 já vem no Windows. |
 | macOS (Intel e Apple Silicon) | `Oddeye-<versão>-macos-universal.dmg` | Veja abaixo como abrir um app sem assinatura da Apple. |
 | Debian, Ubuntu, Mint | `oddeye_<versão>_amd64.deb` | `sudo apt install ./oddeye_<versão>_amd64.deb` |
 | Fedora, openSUSE | `oddeye-<versão>.x86_64.rpm` | `sudo dnf install ./oddeye-<versão>.x86_64.rpm` |
@@ -81,6 +81,21 @@ O app não traz música embutida. Coloque suas faixas (mp3, ogg, flac, wav, m4a)
 `~/.config/oddeye/music` (ou escolha outra no controle de som). Elas tocam em ordem alfabética, em
 loop. Sem faixas na pasta, toca uma trilha ambiente sintetizada pelo próprio app.
 
+## Atualizações
+
+O Oddeye procura uma versão nova nas [Releases](../../releases) ao abrir e depois a cada 6 horas. Quando acha,
+mostra um aviso (e uma notificação, se a janela estiver fechada). Em **Atualizar agora** ele baixa o arquivo,
+confere o SHA-256 com o `SHA256SUMS.txt` do release, troca o app instalado e reinicia sozinho:
+
+| Instalação | Como atualiza |
+| ---------- | ------------- |
+| AppImage, binário solto, Windows (instalador ou portátil), macOS | Troca o arquivo sozinho, sem pedir nada. |
+| `.deb` / `.rpm` | Instala o pacote novo com `pkexec`: o sistema pede a senha uma vez. |
+
+Se o app não tiver permissão para se trocar (por exemplo, um `.app` numa pasta sem acesso de escrita), o aviso
+oferece **Baixar manualmente**, que abre a página do release. Dá para pular uma versão e procurar à mão em
+**Configurações**.
+
 ## Dados locais
 
 | O quê | Linux | macOS | Windows |
@@ -106,6 +121,7 @@ Estrutura:
 - `internal/claude`: triagem com o `claude -p`, prompt (parte editável + contrato de formato fixo).
 - `internal/watcher`: varredura periódica e a regra do que conta como PR nova (`Evaluate`).
 - `internal/tray`: ícone e menu da bandeja (fyne.io/systray no Linux e Windows, `NSStatusItem` no macOS).
+- `internal/updater`: procura releases novas, baixa, confere o checksum e troca o app instalado.
 - `internal/config`, `internal/autostart`, `internal/review`, `internal/music`.
 
 ## Build e release
@@ -117,7 +133,11 @@ wails build -platform windows/amd64          # Windows (cross-compile do Linux) 
 
 O macOS precisa ser compilado num Mac (a bandeja usa cgo). O workflow `.github/workflows/build.yml` roda
 os testes em todo push e PR, e numa tag `v*` gera os instaladores dos três sistemas e publica o release
-com os `SHA256SUMS`.
+com os `SHA256SUMS`. A versão da tag entra no binário (`-ldflags "-X main.version=..."`); um build local
+fica como `dev` e não procura atualizações. Para testar o aviso em desenvolvimento, rode com
+`ODDEYE_FAKE_VERSION=0.0.1 wails dev -tags webkit2_41`.
+
+Para lançar uma versão: `git tag v0.1.1 && git push origin v0.1.1`. Os apps instalados recebem o aviso em até 6 horas.
 
 ## Licença
 

@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"slices"
+	"time"
 
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
@@ -16,6 +17,7 @@ import (
 	"oddeye/internal/config"
 	"oddeye/internal/music"
 	"oddeye/internal/proc"
+	"oddeye/internal/updater"
 )
 
 //go:embed all:frontend/dist
@@ -24,7 +26,13 @@ var assets embed.FS
 //go:embed build/appicon.png
 var appIcon []byte
 
+// version é gravada no build de release (-ldflags "-X main.version=0.1.0"). "dev" desliga o atualizador.
+var version = "dev"
+
 func main() {
+	// Reaberto depois de uma atualização: espera o processo antigo sair para não cair no bloqueio de instância única.
+	updater.WaitForParent(os.Args[1:], 15*time.Second)
+	updater.Cleanup()
 	proc.EnsurePath()
 	library, err := music.NewStore()
 	if err != nil {
@@ -34,7 +42,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	app := NewApp(library, store)
+	app := NewApp(library, store, version)
 	err = wails.Run(&options.App{
 		Title:     "Oddeye",
 		Width:     1440,

@@ -140,8 +140,28 @@ export interface Config {
   model: string;
   launchAtLogin: boolean;
   autostartNoticeSeen: boolean;
+  skippedVersion: string;
   notifyOwnPRs: boolean;
   includeDrafts: boolean;
+}
+
+export interface UpdateInfo {
+  current: string;
+  version: string;
+  notes: string;
+  pageUrl: string;
+  needsPassword: boolean;
+  automatic: boolean;
+}
+
+export type UpdateStage = "downloading" | "installing" | "restarting" | "error";
+
+export interface UpdateProgress {
+  stage: UpdateStage;
+  done: number;
+  total: number;
+  error?: string;
+  manual?: boolean;
 }
 
 export interface SettingsView {
@@ -189,7 +209,16 @@ export const api = {
   onWatcher: (cb: (s: WatcherSnapshot) => void): (() => void) => EventsOn("watcher:update", cb),
   onOpenPR: (cb: (ref: string) => void): (() => void) => EventsOn("pr:open", cb),
   onShowSettings: (cb: () => void): (() => void) => EventsOn("ui:settings", cb),
-  onDeviceCode: (cb: (d: DeviceCode) => void): (() => void) => EventsOn("gh:device-code", cb)
+  onDeviceCode: (cb: (d: DeviceCode) => void): (() => void) => EventsOn("gh:device-code", cb),
+
+  version: (): Promise<string> => Go.Version(),
+  checkUpdate: (): Promise<UpdateInfo | null> => Go.CheckUpdate() as unknown as Promise<UpdateInfo | null>,
+  pendingUpdate: (): Promise<UpdateInfo | null> => Go.PendingUpdate() as unknown as Promise<UpdateInfo | null>,
+  installUpdate: (): Promise<void> => Go.InstallUpdate(),
+  skipUpdate: (version: string): Promise<void> => Go.SkipUpdate(version),
+  openReleasePage: (): Promise<void> => Go.OpenReleasePage(),
+  onUpdateAvailable: (cb: (u: UpdateInfo) => void): (() => void) => EventsOn("update:available", cb),
+  onUpdateProgress: (cb: (p: UpdateProgress) => void): (() => void) => EventsOn("update:progress", cb)
 };
 
 export function errorMessage(e: unknown): string {
