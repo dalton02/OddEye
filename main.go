@@ -35,6 +35,7 @@ func main() {
 	updater.WaitForParent(os.Args[1:], 15*time.Second)
 	updater.Cleanup()
 	proc.EnsurePath()
+	proc.QuietWebKit() // antes do wails.Run, que inicializa o WebKit
 	library, err := music.NewStore()
 	if err != nil {
 		log.Fatal(err)
@@ -65,7 +66,7 @@ func main() {
 			OnSecondInstanceLaunch: app.secondInstance,
 		},
 		AssetServer:      &assetserver.Options{Assets: assets, Middleware: assetMiddleware},
-		BackgroundColour: &options.RGBA{R: 3, G: 4, B: 7, A: 255},
+		BackgroundColour: &options.RGBA{R: 17, G: 17, B: 17, A: 255},
 		OnStartup:        app.startup,
 		OnShutdown:       app.shutdown,
 		Bind:             []interface{}{app},

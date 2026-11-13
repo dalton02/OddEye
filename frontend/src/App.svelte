@@ -1232,7 +1232,6 @@
   }
   .speech {
     margin: 0;
-    max-width: 880px;
     font-size: var(--fs-md);
     white-space: pre-wrap;
   }
@@ -1269,7 +1268,6 @@
     list-style: none;
     margin: 0;
     padding: 0;
-    max-width: 880px;
     display: flex;
     flex-direction: column;
     gap: var(--sp-1);

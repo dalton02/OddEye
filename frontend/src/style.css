@@ -1,9 +1,9 @@
 /* Sistema visual: preto, branco e cinzas. Verde, amarelo e vermelho só carregam significado
    (diff, severidade, erro) e nunca decoram. Movimento: só cor e opacidade, em --ease. */
 :root {
-  --bg: #0a0a0a;
-  --surface: #111111;
-  --surface-2: #171717;
+  --bg: #111111;
+  --surface: #171717;
+  --surface-2: #1d1d1d;
   --selected: #242424;
   --border: #242424;
   --border-strong: #333333;
@@ -11,7 +11,7 @@
   --text-2: #c4c4c4;
   --muted: #8f8f8f;
   --primary: #ffffff;
-  --on-primary: #0a0a0a;
+  --on-primary: #111111;
 
   --green: #3fb950;
   --yellow: #e3b341;
@@ -252,10 +252,39 @@ textarea.field {
 .field::placeholder {
   color: var(--muted);
 }
-input[type="checkbox"],
 input[type="radio"],
 input[type="range"] {
   accent-color: var(--text);
+}
+/* Desenhado à mão: o WebKitGTK ignora accent-color e pinta o checkbox com o tema GTK do sistema. */
+input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+  background: var(--surface-2) no-repeat center / 12px 12px;
+  cursor: pointer;
+  transition: background-color var(--ease), border-color var(--ease);
+}
+input[type="checkbox"]:hover:not(:disabled) {
+  border-color: var(--muted);
+}
+input[type="checkbox"]:checked {
+  border-color: var(--primary);
+  background-color: var(--primary);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 6.2 5 8.6 9.5 3.6' fill='none' stroke='%23111111' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+input[type="checkbox"]:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+input[type="checkbox"]:disabled {
+  opacity: 0.5;
+  cursor: default;
 }
 
 /* Modais */
