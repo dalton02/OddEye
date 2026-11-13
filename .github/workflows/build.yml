@@ -32,6 +32,9 @@ jobs:
           npm test
 
   build:
+    # Só em tag e no disparo manual: a fila de runner macOS do GitHub vive cheia,
+    # e buildar em todo push e PR fazia o release disputar runner com a main.
+    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
     needs: test
     strategy:
       fail-fast: false
