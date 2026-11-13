@@ -13,6 +13,7 @@ import (
 	"oddeye/internal/claude"
 	"oddeye/internal/config"
 	"oddeye/internal/gh"
+	"oddeye/internal/menuentry"
 	"oddeye/internal/review"
 	"oddeye/internal/tray"
 	"oddeye/internal/watcher"
@@ -49,6 +50,12 @@ func (a *App) startup(ctx context.Context) {
 	// Reescreve a entrada de autostart: o caminho do executável muda quando o app é atualizado ou movido.
 	if cfg, err := a.store.Load(); err == nil && cfg.LaunchAtLogin {
 		_ = autostart.Set(true)
+	}
+	// Build de desenvolvimento não vai para o menu: o binário em build/bin é descartável.
+	if a.version != "dev" {
+		if err := menuentry.Ensure(appIcon); err != nil {
+			log.Printf("não foi possível criar a entrada no menu de aplicativos: %v", err)
+		}
 	}
 	go a.watcher.Run(ctx)
 	go a.runUpdateChecks(ctx)

@@ -47,6 +47,10 @@ dele. O `.deb` e o `.rpm` já instalam isso sozinhos. No AppImage (ou rodando o 
 sua distro, por exemplo `sudo pacman -S gst-plugins-good` no Arch ou `sudo dnf install gstreamer1-plugins-good`
 no Fedora. Se faltar, o app funciona normalmente sem som e o controle de música mostra o comando a rodar.
 
+**Menu de aplicativos no Linux:** o `.deb` e o `.rpm` já instalam o atalho. No AppImage (ou no binário
+solto) o próprio app cria o atalho em `~/.local/share/applications/oddeye.desktop` na primeira abertura e
+corrige o caminho sozinho se você mover o arquivo. Se apagar o AppImage, o atalho some do menu.
+
 **Linux com GNOME:** o GNOME não mostra ícones de bandeja sem a extensão
 [AppIndicator](https://extensions.gnome.org/extension/615/appindicator-support/) (Ubuntu já traz ela
 ligada). KDE, Cinnamon, XFCE e afins funcionam direto.
@@ -159,6 +163,7 @@ Estrutura:
 - `internal/watcher`: varredura periódica e a regra do que conta como PR nova (`Evaluate`).
 - `internal/tray`: ícone e menu da bandeja (fyne.io/systray no Linux e Windows, `NSStatusItem` no macOS).
 - `internal/updater`: procura releases novas, baixa, confere o checksum e troca o app instalado.
+- `internal/menuentry`: atalho no menu de aplicativos para o AppImage e o binário solto no Linux.
 - `internal/config`, `internal/autostart`, `internal/review`, `internal/music`.
 
 ## Build e release
