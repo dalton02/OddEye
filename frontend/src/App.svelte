@@ -413,7 +413,7 @@
   {#if phase === "home"}
     <main class="home">
       <img class="logo" src={logo} width="150" height="150" alt="" />
-      <h1>Pull<span>sar</span></h1>
+      <h1>Odd<span>eye</span></h1>
       <p class="tagline">Cole o link de uma pull request. O Claude separa só o que importa e te guia arquivo por arquivo.</p>
 
       <form
