@@ -20,6 +20,11 @@ const RoutePrefix = "/music/"
 
 var audioExts = map[string]bool{".mp3": true, ".ogg": true, ".oga": true, ".opus": true, ".wav": true, ".flac": true, ".m4a": true, ".aac": true, ".webm": true}
 
+// IsAudio diz se o nome tem extensão de áudio que o player toca.
+func IsAudio(name string) bool {
+	return audioExts[strings.ToLower(filepath.Ext(name))]
+}
+
 type Library struct {
 	Dir    string   `json:"dir"`
 	Tracks []string `json:"tracks"`

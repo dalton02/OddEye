@@ -22,8 +22,8 @@ jobs:
         with:
           node-version: 22
       - uses: oven-sh/setup-bun@v2
-      - run: go vet ./internal/...
-      - run: go test ./internal/...
+      - run: go vet -tags nosqlite,purego_utp ./internal/...
+      - run: go test -tags nosqlite,purego_utp ./internal/...
       - name: Frontend
         working-directory: frontend
         run: |
@@ -77,7 +77,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev
-          wails build -platform ${{ matrix.platform }} -tags webkit2_41 -trimpath -ldflags "-X main.version=${VERSION}"
+          wails build -platform ${{ matrix.platform }} -tags webkit2_41,nosqlite,purego_utp -trimpath -ldflags "-X main.version=${VERSION}"
           go install github.com/goreleaser/nfpm/v2/cmd/nfpm@v2.41.0
           nfpm package --config build/linux/nfpm.yaml --packager deb --target "build/bin/oddeye_${VERSION}_amd64.deb"
           nfpm package --config build/linux/nfpm.yaml --packager rpm --target "build/bin/oddeye-${VERSION}.x86_64.rpm"
@@ -93,7 +93,7 @@ jobs:
           # O runner do Windows não traz o NSIS, que o wails usa para gerar o instalador.
           choco install nsis -y --no-progress
           export PATH="$PATH:/c/Program Files (x86)/NSIS"
-          wails build -platform ${{ matrix.platform }} -nsis -trimpath -ldflags "-X main.version=${VERSION}"
+          wails build -platform ${{ matrix.platform }} -nsis -tags nosqlite,purego_utp -trimpath -ldflags "-X main.version=${VERSION}"
           mv build/bin/oddeye-amd64-installer.exe "build/bin/Oddeye-${VERSION}-windows-setup.exe"
           mv build/bin/oddeye.exe "build/bin/oddeye-${VERSION}-windows-portable.exe"
 
@@ -102,7 +102,7 @@ jobs:
         env:
           VERSION: ${{ steps.version.outputs.version }}
         run: |
-          wails build -platform ${{ matrix.platform }} -trimpath -ldflags "-X main.version=${VERSION}"
+          wails build -platform ${{ matrix.platform }} -tags nosqlite,purego_utp -trimpath -ldflags "-X main.version=${VERSION}"
           # Sem conta de desenvolvedor Apple: assinatura ad-hoc, senão o Apple Silicon recusa o binário universal.
           codesign --force --deep --sign - "build/bin/Oddeye.app"
           hdiutil create -volname "Oddeye" -srcfolder "build/bin/Oddeye.app" -ov -format UDZO "build/bin/Oddeye-${VERSION}-macos-universal.dmg"

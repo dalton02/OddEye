@@ -15,12 +15,15 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 
 	"oddeye/internal/appdir"
+	"oddeye/internal/archive"
 	"oddeye/internal/audio"
 	"oddeye/internal/claude"
 	"oddeye/internal/config"
 	"oddeye/internal/gh"
 	"oddeye/internal/music"
+	"oddeye/internal/playlist"
 	"oddeye/internal/review"
+	"oddeye/internal/torrent"
 	"oddeye/internal/tray"
 	"oddeye/internal/watcher"
 )
@@ -30,6 +33,12 @@ type App struct {
 	gh      gh.Runner
 	music   *music.Store
 	store   *config.Store
+
+	// biblioteca de música: playlists, busca no archive.org e downloads por torrent (music_bindings.go)
+	playlists *playlist.Store
+	torrents  *torrent.Engine // nil quando o motor não conseguiu iniciar
+	archive   *archive.Client
+
 	watcher *watcher.Watcher
 	tray    *tray.Tray
 	version string
@@ -55,7 +64,7 @@ type session struct {
 }
 
 func NewApp(library *music.Store, store *config.Store, version string) *App {
-	return &App{music: library, store: store, version: version, inflight: map[string]chan struct{}{}}
+	return &App{music: library, store: store, version: version, archive: archive.New(), inflight: map[string]chan struct{}{}}
 }
 
 func (a *App) ListMusic() music.Library {
@@ -530,6 +539,16 @@ func (a *App) SubmitReview(event, body string) (string, error) {
 		res.HTMLURL = s.info.URL
 	}
 	return res.HTMLURL, nil
+}
+
+// PRDescription devolve a descrição original da PR aberta, em HTML renderizado pelo GitHub. Busca a
+// cada chamada porque as URLs assinadas das imagens e vídeos expiram.
+func (a *App) PRDescription() (string, error) {
+	s, err := a.current()
+	if err != nil {
+		return "", err
+	}
+	return a.gh.PRBodyHTML(a.ctx, s.ref)
 }
 
 func (a *App) OpenURL(url string) {

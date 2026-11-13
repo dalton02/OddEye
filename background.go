@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"runtime/debug"
+	"strings"
 
 	"github.com/wailsapp/wails/v2/pkg/options"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
@@ -59,6 +60,7 @@ func (a *App) startup(ctx context.Context) {
 	}
 	go a.watcher.Run(ctx)
 	go a.runUpdateChecks(ctx)
+	a.startMusic()
 }
 
 func (a *App) shutdown(ctx context.Context) {
@@ -66,6 +68,7 @@ func (a *App) shutdown(ctx context.Context) {
 		a.tray.Stop()
 	}
 	runtime.CleanupNotifications(ctx)
+	a.stopMusic()
 }
 
 func (a *App) startNotifications() {
@@ -204,6 +207,42 @@ func (a *App) SaveSettings(cfg config.Config) (config.Config, error) {
 }
 
 func (a *App) ListRepos() ([]gh.Repo, error) { return a.gh.ListRepos(a.ctx) }
+
+// ProjectPRs são as PRs abertas de um repositório vigiado (um "projeto" na tela inicial).
+type ProjectPRs struct {
+	Repo string      `json:"repo"` // owner/name, como está na configuração
+	PRs  []gh.OpenPR `json:"prs"`
+}
+
+// OpenPRsByProject lista as PRs abertas de cada repositório vigiado, na ordem da configuração. Repo
+// sem PR aberta volta com a lista vazia, para a tela mostrar o projeto mesmo assim.
+func (a *App) OpenPRsByProject() ([]ProjectPRs, error) {
+	cfg, err := a.store.Load()
+	if err != nil {
+		return nil, err
+	}
+	projects := make([]ProjectPRs, 0, len(cfg.Repos))
+	if len(cfg.Repos) == 0 {
+		return projects, nil
+	}
+	names := make([]string, 0, len(cfg.Repos))
+	index := map[string]int{}
+	for i, r := range cfg.Repos {
+		names = append(names, r.FullName())
+		index[strings.ToLower(r.FullName())] = i
+		projects = append(projects, ProjectPRs{Repo: r.FullName(), PRs: []gh.OpenPR{}})
+	}
+	prs, err := a.gh.OpenPRs(a.ctx, names)
+	if err != nil {
+		return nil, err
+	}
+	for _, p := range prs {
+		if i, ok := index[strings.ToLower(p.Ref.Owner+"/"+p.Ref.Repo)]; ok {
+			projects[i].PRs = append(projects[i].PRs, p)
+		}
+	}
+	return projects, nil
+}
 
 func (a *App) WatcherState() watcher.Snapshot { return a.watcher.Snapshot() }
 

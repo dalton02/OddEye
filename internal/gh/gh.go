@@ -118,6 +118,16 @@ func (r Runner) PRInfo(ctx context.Context, ref PRRef) (PRInfo, error) {
 	return info, nil
 }
 
+// PRBodyHTML devolve a descrição da PR já renderizada pelo GitHub. As imagens e vídeos anexados vêm
+// com URLs assinadas que expiram em poucos minutos, por isso o resultado não deve ir para cache.
+func (r Runner) PRBodyHTML(ctx context.Context, ref PRRef) (string, error) {
+	out, err := r.run(ctx, nil, "api", "-H", "Accept: application/vnd.github.html+json", ref.apiBase(), "--jq", ".body_html // \"\"")
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(string(out)), nil
+}
+
 type File struct {
 	Path         string `json:"filename"`
 	Status       string `json:"status"` // added, removed, modified, renamed, copied, changed, unchanged

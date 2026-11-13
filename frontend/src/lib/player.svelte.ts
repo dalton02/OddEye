@@ -1,28 +1,41 @@
-import { api, type AudioStatus, type MusicLibrary } from "./api";
+import { api, errorMessage, type AudioStatus, type MusicLibrary, type Playlist } from "./api";
 import { AmbientMusic, playClick } from "./audio";
+import { folderTrack, percent, trackURL, type Track } from "./music";
 
 const SETTINGS_KEY = "oddeye:player";
+const POLL_MS = 1000;
 
 interface Saved {
   volume: number;
   sfx: boolean;
   enabled: boolean;
   index: number;
+  /** playlist tocando ao fechar o app; "" é a pasta local */
+  playlistId?: string;
 }
 
 /**
  * Estado único do som do app (um módulo, várias telas podem mostrar o controle).
- * Toca as músicas da pasta do usuário em sequência e em loop; sem músicas na pasta,
- * toca a trilha ambiente sintetizada.
+ * Toca uma fila de faixas em sequência e em loop: a pasta local, uma playlist ou um álbum aberto
+ * na busca. Faixa de torrent que ainda não baixou é baixada com prioridade antes de tocar. Sem
+ * nenhuma faixa na fila, toca a trilha ambiente sintetizada.
  */
 class Player {
   library = $state<MusicLibrary>({ dir: "", tracks: [] });
+  playlists = $state<Playlist[]>([]);
+  queue = $state<Track[]>([]);
+  /** de onde a fila veio: id de playlist, "" para a pasta local ou null para uma fila avulsa (álbum da busca) */
+  playlistId = $state<string | null>("");
+  queueLabel = $state("Pasta local");
   index = $state(0);
   playing = $state(false);
+  /** texto de espera enquanto a faixa de torrent baixa ("Baixando 42%") */
+  loading = $state("");
   volume = $state(0.5);
   sfx = $state(true);
   enabled = $state(true);
   error = $state("");
+  libraryOpen = $state(false);
   /** preenchido quando o sistema não consegue tocar som: o player fica desligado e explica o que falta */
   unavailable = $state<AudioStatus | null>(null);
 
@@ -33,13 +46,17 @@ class Player {
   private ambient = new AmbientMusic();
   private started = false;
 
-  get mode(): "folder" | "ambient" {
-    return this.library.tracks.length ? "folder" : "ambient";
+  get mode(): "queue" | "ambient" {
+    return this.queue.length ? "queue" : "ambient";
+  }
+
+  get current(): Track | null {
+    return this.queue[this.index] ?? null;
   }
 
   get title(): string {
     if (this.mode === "ambient") return "Trilha ambiente";
-    return (this.library.tracks[this.index] ?? "").replace(/\.[^.]+$/, "");
+    return this.current?.title ?? "";
   }
 
   async init(): Promise<void> {
@@ -50,6 +67,7 @@ class Player {
         this.sfx = saved.sfx;
         this.enabled = saved.enabled;
         this.index = saved.index;
+        this.playlistId = saved.playlistId ?? "";
       }
     } catch {
       /* preferências indisponíveis: segue com o padrão */
@@ -85,13 +103,68 @@ class Player {
     );
   }
 
+  /** Relê a pasta e as playlists. A fila atual é refeita a partir delas, mantendo a faixa tocando. */
   async reload(): Promise<void> {
     try {
       this.library = await api.listMusic();
     } catch {
       this.library = { dir: "", tracks: [] };
     }
-    if (this.index >= this.library.tracks.length) this.index = 0;
+    try {
+      this.playlists = await api.listPlaylists();
+    } catch {
+      this.playlists = [];
+    }
+    if (this.playlistId === null) return; // fila avulsa: não vem de nenhuma das duas
+    const list = this.playlistId ? this.playlists.find((p) => p.id === this.playlistId) : undefined;
+    if (this.playlistId && !list) this.playlistId = ""; // playlist apagada: volta para a pasta
+    const tracks = list ? list.tracks : this.library.tracks.map(folderTrack);
+    this.replaceQueue(tracks, list ? list.name : "Pasta local");
+  }
+
+  /** Troca a fila sem interromper a faixa atual quando ela continua presente. */
+  private replaceQueue(tracks: Track[], label: string): void {
+    const cur = this.current;
+    this.queue = tracks;
+    this.queueLabel = label;
+    const keep = cur ? tracks.findIndex((t) => t.id === cur.id) : -1;
+    if (keep >= 0) this.index = keep;
+    else if (this.index >= tracks.length) this.index = 0;
+  }
+
+  /** Toca uma fila a partir da posição start. playlistId null marca uma fila avulsa. */
+  playQueue(tracks: Track[], start: number, label: string, playlistId: string | null): void {
+    this.queue = tracks;
+    this.queueLabel = label;
+    this.playlistId = playlistId;
+    this.index = Math.max(0, Math.min(start, tracks.length - 1));
+    this.failures = 0;
+    void this.play();
+  }
+
+  playPlaylist(id: string, start = 0): void {
+    if (id === "") {
+      this.playQueue(this.library.tracks.map(folderTrack), start, "Pasta local", "");
+      return;
+    }
+    const list = this.playlists.find((p) => p.id === id);
+    if (list?.tracks.length) this.playQueue(list.tracks, start, list.name, id);
+  }
+
+  /** Chamado pela biblioteca depois de mexer numa playlist: a fila acompanha se for a mesma. */
+  playlistChanged(list: Playlist): void {
+    const i = this.playlists.findIndex((p) => p.id === list.id);
+    if (i >= 0) this.playlists[i] = list;
+    else this.playlists.push(list);
+    if (this.playlistId === list.id) this.replaceQueue(list.tracks, list.name);
+  }
+
+  playlistDeleted(id: string): void {
+    this.playlists = this.playlists.filter((p) => p.id !== id);
+    if (this.playlistId === id) {
+      this.playlistId = "";
+      this.replaceQueue(this.library.tracks.map(folderTrack), "Pasta local");
+    }
   }
 
   async play(): Promise<void> {
@@ -106,11 +179,15 @@ class Player {
       this.save();
       return;
     }
-    const track = this.library.tracks[this.index];
+    const track = this.queue[this.index];
+    /* mostra pausar já durante a espera do download, para o clique seguinte cancelar */
+    this.playing = true;
     try {
+      if (track.source === "torrent") await this.ensureDownloaded(track, generation);
+      if (generation !== this.generation) return;
       /* O player de mídia do WebKitGTK (Linux) recusa a URL do esquema próprio do Wails (wails://), embora
          o fetch dela funcione: a faixa é baixada pelo fetch e tocada a partir de uma URL blob:. */
-      const response = await fetch(api.musicURL(track));
+      const response = await fetch(trackURL(track));
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const blob = await response.blob();
       if (generation !== this.generation) return;
@@ -126,19 +203,48 @@ class Player {
       this.audio = audio;
       await audio.play();
       this.playing = true;
+      this.prefetchNext();
     } catch (e) {
       if (generation !== this.generation) return;
-      this.fail(track, e instanceof Error ? e.message : String(e));
+      this.fail(track, errorMessage(e));
+    } finally {
+      if (generation === this.generation) this.loading = "";
     }
     this.save();
   }
 
+  /* Pede o arquivo com prioridade e espera terminar. Outra faixa escolhida no meio (generation
+     diferente) encerra a espera; o download segue em segundo plano. */
+  private async ensureDownloaded(track: Track, generation: number): Promise<void> {
+    const hash = track.infoHash ?? "";
+    const path = track.path ?? "";
+    let file = await api.downloadTrack(hash, path, true);
+    while (!file.complete) {
+      if (generation !== this.generation) return;
+      this.loading = `Baixando ${percent(file.done, file.size)}%`;
+      await new Promise((r) => setTimeout(r, POLL_MS));
+      const files = await api.torrentFiles(hash);
+      const f = files.find((x) => x.path === path);
+      if (!f) throw new Error("o arquivo sumiu do torrent");
+      file = f;
+    }
+  }
+
+  /** Começa a baixar a próxima faixa de torrent enquanto esta toca, para a troca não ter espera. */
+  private prefetchNext(): void {
+    const next = this.queue[(this.index + 1) % this.queue.length];
+    if (next?.source === "torrent" && next !== this.current) {
+      void api.downloadTrack(next.infoHash ?? "", next.path ?? "", false).catch(() => {});
+    }
+  }
+
   /* Falha de uma faixa pula para a próxima; se todas falharam em sequência, para de pular (sem isso
      o player entra num loop trocando de faixa) e volta para a trilha ambiente, mostrando o erro. */
-  private fail(track: string, reason: string): void {
+  private fail(track: Track, reason: string): void {
     this.failures++;
-    this.error = `Não consegui tocar "${track}": ${reason}.`;
-    if (this.failures >= this.library.tracks.length) {
+    this.loading = "";
+    this.error = `Não consegui tocar "${track.title}": ${reason}.`;
+    if (this.failures >= this.queue.length) {
       this.failures = 0;
       this.stopAll();
       this.ambient.start(this.volume);
@@ -146,7 +252,7 @@ class Player {
       this.error += " Voltei para a trilha ambiente.";
       return;
     }
-    this.index = (this.index + 1) % this.library.tracks.length;
+    this.index = (this.index + 1) % this.queue.length;
     void this.play();
   }
 
@@ -154,6 +260,7 @@ class Player {
     this.generation++;
     this.stopAll();
     this.playing = false;
+    this.loading = "";
     this.enabled = false;
     this.save();
   }
@@ -165,13 +272,13 @@ class Player {
 
   next(): void {
     this.failures = 0;
-    if (this.mode === "folder") this.index = (this.index + 1) % this.library.tracks.length;
+    if (this.mode === "queue") this.index = (this.index + 1) % this.queue.length;
     void this.play();
   }
 
   prev(): void {
     this.failures = 0;
-    if (this.mode === "folder") this.index = (this.index - 1 + this.library.tracks.length) % this.library.tracks.length;
+    if (this.mode === "queue") this.index = (this.index - 1 + this.queue.length) % this.queue.length;
     void this.play();
   }
 
@@ -191,8 +298,11 @@ class Player {
     const lib = await api.chooseMusicFolder();
     if (!lib) return;
     this.library = lib;
-    this.index = 0;
-    if (this.playing) void this.play();
+    if (this.playlistId === "") {
+      this.queue = lib.tracks.map(folderTrack);
+      this.index = 0;
+      if (this.playing) void this.play();
+    }
   }
 
   private stopAll(): void {
@@ -212,7 +322,14 @@ class Player {
 
   private save(): void {
     try {
-      const s: Saved = { volume: this.volume, sfx: this.sfx, enabled: this.enabled, index: this.index };
+      const s: Saved = {
+        volume: this.volume,
+        sfx: this.sfx,
+        enabled: this.enabled,
+        index: this.index,
+        /* fila avulsa não sobrevive ao reinício: volta para a pasta */
+        playlistId: this.playlistId ?? ""
+      };
       localStorage.setItem(SETTINGS_KEY, JSON.stringify(s));
     } catch {
       /* preferências são conveniência */

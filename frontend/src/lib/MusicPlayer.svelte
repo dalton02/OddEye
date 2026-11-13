@@ -38,7 +38,7 @@
     title="Opções de som"
     aria-expanded={open}
   >
-    <span class="name">{player.title}</span>
+    <span class="name">{player.loading ? `${player.loading}: ${player.title}` : player.title}</span>
   </button>
   <button class="icon" onclick={() => player.prev()} title="Anterior" aria-label="Anterior">
     <svg viewBox="0 0 14 14" aria-hidden="true"><path d="M11 2.5l-6 4.5 6 4.5zM3 2.5v9" /></svg>
@@ -68,15 +68,21 @@
       <div class="lib">
         <p class="hint">
           {#if player.mode === "ambient"}
-            Tocando a trilha ambiente. Coloque suas músicas (mp3, ogg, flac, wav, m4a) na pasta abaixo e elas tocam em ordem, em loop.
+            Tocando a trilha ambiente. Busque músicas na biblioteca ou coloque arquivos (mp3, ogg, flac, wav, m4a) na pasta de músicas.
           {:else}
-            {player.library.tracks.length} música{player.library.tracks.length === 1 ? "" : "s"} na pasta, tocando em ordem.
+            {player.queueLabel}: {player.queue.length} faixa{player.queue.length === 1 ? "" : "s"}, tocando em ordem.
           {/if}
         </p>
-        <code title={player.library.dir}>{player.library.dir}</code>
+        {#if player.loading}<p class="hint">{player.loading}...</p>{/if}
         <div class="actions">
+          <button
+            class="btn small"
+            onclick={() => {
+              open = false;
+              player.libraryOpen = true;
+            }}>Abrir biblioteca</button
+          >
           <button class="link" onclick={() => api.openMusicFolder()}>Abrir pasta</button>
-          <button class="link" onclick={() => player.chooseFolder()}>Escolher outra</button>
           <button class="link" onclick={() => player.reload()}>Recarregar</button>
         </div>
       </div>
@@ -214,6 +220,7 @@
   .actions {
     display: flex;
     flex-wrap: wrap;
+    align-items: center;
     gap: var(--sp-4);
   }
 </style>

@@ -153,8 +153,8 @@ O diff da PR vai para o Claude pelo seu Claude Code; nada passa por servidor do 
 
 ```bash
 go install github.com/wailsapp/wails/v2/cmd/wails@v2.17.1
-wails dev -tags webkit2_41          # Linux com WebKitGTK 4.1
-go test ./internal/...
+wails dev -tags webkit2_41,nosqlite,purego_utp   # Linux com WebKitGTK 4.1
+go test -tags nosqlite,purego_utp ./internal/...
 cd frontend && npm run check && npm test
 ```
 
@@ -166,20 +166,21 @@ Estrutura:
 - `internal/tray`: ícone e menu da bandeja (fyne.io/systray no Linux e Windows, `NSStatusItem` no macOS).
 - `internal/updater`: procura releases novas, baixa, confere o checksum e troca o app instalado.
 - `internal/menuentry`: atalho no menu de aplicativos para o AppImage e o binário solto no Linux.
+- `internal/torrent`, `internal/archive`, `internal/playlist`: busca no archive.org, download por torrent e playlists. As tags `nosqlite,purego_utp` mantêm o motor de torrent em Go puro (sem cgo extra), o que preserva o cross-compile para Windows.
 - `internal/config`, `internal/autostart`, `internal/review`, `internal/music`.
 
 ## Build e release
 
 ```bash
-wails build -tags webkit2_41                 # Linux → build/bin/oddeye
-wails build -platform windows/amd64          # Windows (cross-compile do Linux) → build/bin/oddeye.exe
+wails build -tags webkit2_41,nosqlite,purego_utp      # Linux → build/bin/oddeye
+wails build -platform windows/amd64 -tags nosqlite,purego_utp   # Windows (cross-compile do Linux) → build/bin/oddeye.exe
 ```
 
 O macOS precisa ser compilado num Mac (a bandeja usa cgo). O workflow `.github/workflows/build.yml` roda
 os testes em todo push e PR, e numa tag `v*` gera os instaladores dos três sistemas e publica o release
 com os `SHA256SUMS`. A versão da tag entra no binário (`-ldflags "-X main.version=..."`); um build local
 fica como `dev` e não procura atualizações. Para testar o aviso em desenvolvimento, rode com
-`ODDEYE_FAKE_VERSION=0.0.1 wails dev -tags webkit2_41`.
+`ODDEYE_FAKE_VERSION=0.0.1 wails dev -tags webkit2_41,nosqlite,purego_utp`.
 
 Para lançar uma versão: `git tag v0.1.1 && git push origin v0.1.1`. Os apps instalados recebem o aviso em até 6 horas.
 

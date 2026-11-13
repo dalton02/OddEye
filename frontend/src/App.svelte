@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from "svelte";
+  import { onMount, untrack } from "svelte";
   import Galaxy from "./lib/Galaxy.svelte";
   /* versão clara da logo (silhueta branca, fundo transparente), gerada a partir de logo.png para o tema escuro */
   import logo from "./assets/logo-light.png";
@@ -7,12 +7,14 @@
   import { createResolver } from "./lib/paths";
   import CodeView from "./lib/CodeView.svelte";
   import FileDrawer from "./lib/FileDrawer.svelte";
+  import DescriptionPanel from "./lib/DescriptionPanel.svelte";
   import ReviewModal from "./lib/ReviewModal.svelte";
   import MusicPlayer from "./lib/MusicPlayer.svelte";
+  import MusicModal from "./lib/MusicModal.svelte";
   import Settings from "./lib/Settings.svelte";
   import UpdateModal from "./lib/UpdateModal.svelte";
-  import Inbox from "./lib/Inbox.svelte";
   import Setup from "./lib/Setup.svelte";
+  import Projects from "./lib/Projects.svelte";
   import ArchitectView from "./lib/architect/ArchitectView.svelte";
   import { chaptersOf, narrate, ownerOf } from "./lib/architect/chapters";
   import { player } from "./lib/player.svelte";
@@ -25,10 +27,10 @@
     type Deps,
     type Draft,
     type DraftInput,
-    type OpenPR,
-    type WatcherSnapshot,
     type FileView,
     type Mode,
+    type OpenPR,
+    type ProjectPRs,
     type Progress,
     type ReviewEvent,
     type Session,
@@ -40,7 +42,6 @@
   let phase = $state<Phase>("home");
   let link = $state("");
   let deps = $state<Deps | null>(null);
-  let watcherSnap = $state<WatcherSnapshot | null>(null);
   let settingsOpen = $state(false);
   let updateInfo = $state<UpdateInfo | null>(null);
   let error = $state("");
@@ -55,6 +56,8 @@
   let drafts = $state<Draft[]>([]);
   let visited = $state(new Set<string>());
   let drawerOpen = $state(false);
+  /* descrição original da PR, como o autor escreveu */
+  let descOpen = $state(false);
   let reviewOpen = $state(false);
   let menuOpen = $state(false);
   let keysOpen = $state(false);
@@ -119,7 +122,6 @@
     } catch {
       recent = [];
     }
-    api.watcherState().then((s) => (watcherSnap = s));
     const offs = [
       api.onProgress((p) => {
         progress = p;
@@ -127,7 +129,6 @@
           progressLog = [...progressLog.slice(-5), p.message];
         }
       }),
-      api.onWatcher((s) => (watcherSnap = s)),
       api.onShowSettings(() => (settingsOpen = true)),
       api.onUpdateAvailable((u) => (updateInfo = u)),
       /* clique na notificação ou no menu da bandeja: abre a PR direto no tour (rascunhos ficam em disco) */
@@ -149,12 +150,41 @@
     deps = await api.checkDeps();
   }
 
-  function openPending(pr: OpenPR): void {
+  const depsOk = $derived(!!deps && !deps.ghError && !deps.claudeError);
+
+  /* PRs abertas de cada repositório vigiado (um projeto por repo), listadas na tela inicial */
+  let projects = $state<ProjectPRs[] | null>(null);
+  let projectsLoading = $state(false);
+  let projectsError = $state("");
+
+  async function loadProjects(): Promise<void> {
+    if (projectsLoading) return;
+    projectsLoading = true;
+    projectsError = "";
+    try {
+      projects = await api.openPRsByProject();
+    } catch (e) {
+      projectsError = errorMessage(e);
+    } finally {
+      projectsLoading = false;
+    }
+  }
+
+  /* busca assim que gh e Claude estão prontos; depois só ao voltar para a home ou mexer nas configurações */
+  $effect(() => {
+    if (depsOk) untrack(() => projects === null && void loadProjects());
+  });
+
+  function analyzePR(pr: OpenPR, m: Mode): void {
     link = pr.url;
+    mode = m;
     void start();
   }
 
-  const depsOk = $derived(!!deps && !deps.ghError && !deps.claudeError);
+  function closeSettings(): void {
+    settingsOpen = false;
+    if (phase === "home" && depsOk) void loadProjects();
+  }
   const tourFiles = $derived(session?.files ?? []);
   const inTour = $derived(activePath !== null && tourFiles.some((f) => f.path === activePath));
   const entry = $derived(tourFiles.find((f) => f.path === activePath));
@@ -380,12 +410,14 @@
 
   function newPR(): void {
     phase = "home";
+    descOpen = false;
     session = null;
     file = null;
     activePath = null;
     celebrate = "";
     error = "";
     link = "";
+    if (depsOk) void loadProjects();
   }
 
   const TOUR_STEP: Record<string, -1 | 1> = { ArrowLeft: -1, h: -1, k: -1, ArrowRight: 1, l: 1, j: 1 };
@@ -395,13 +427,25 @@
   });
 
   function onKey(e: KeyboardEvent): void {
-    if (phase !== "tour" || reviewOpen || settingsOpen || updateInfo) return;
+    if (phase !== "tour" || reviewOpen || settingsOpen || player.libraryOpen || updateInfo) return;
     const el = document.activeElement as HTMLElement | null;
     const editorFocused = !!el?.classList.contains("inputarea") && !!el.closest(".monaco-editor");
     if (!editorFocused && (el?.tagName === "INPUT" || el?.tagName === "TEXTAREA")) return;
     const inCode = editorFocused || codeFullscreen;
+    if (descOpen) {
+      if (e.key === "Escape" || ((e.key === "d" || e.key === "D") && !e.ctrlKey && !e.metaKey)) {
+        e.preventDefault();
+        descOpen = false;
+      }
+      return;
+    }
     const step = TOUR_STEP[e.key];
-    if (step && !e.ctrlKey && !e.metaKey && (e.altKey || !inCode)) {
+    if ((e.key === "d" || e.key === "D") && !inCode && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      e.preventDefault();
+      closePopovers();
+      drawerOpen = false;
+      descOpen = true;
+    } else if (step &&!e.ctrlKey && !e.metaKey && (e.altKey || !inCode)) {
       e.preventDefault();
       go(step);
     } else if (e.key === "Enter" && codeView && (!el || el === document.body || editorFocused)) {
@@ -486,21 +530,23 @@
         <Setup {deps} onrecheck={recheckDeps} />
       {/if}
 
-      {#if depsOk}
-        <Inbox
-          snapshot={watcherSnap}
-          onopen={openPending}
-          oncheck={() => api.checkNow()}
-          onsettings={() => (settingsOpen = true)}
-        />
-      {/if}
-
       {#if autostartNotice}
         <div class="notice" role="status">
           <span>O Oddeye abre junto com o sistema, direto na bandeja, para avisar de PR nova. Dá para mudar depois em Configurações.</span>
           <button class="link" onclick={() => dismissAutostartNotice(false)}>Não abrir com o sistema</button>
           <button class="link" onclick={() => dismissAutostartNotice(true)}>Entendi</button>
         </div>
+      {/if}
+
+      {#if depsOk}
+        <Projects
+          {projects}
+          loading={projectsLoading}
+          error={projectsError}
+          onanalyze={analyzePR}
+          onrefresh={loadProjects}
+          onsettings={() => (settingsOpen = true)}
+        />
       {/if}
 
       {#if recent.length}
@@ -539,6 +585,10 @@
         <svg viewBox="0 0 14 14" aria-hidden="true"><path d="M2 3.5h10M2 7h10M2 10.5h10" /></svg>
         Arquivos
       </button>
+      <button class="btn" class:on={descOpen} onclick={() => { drawerOpen = false; descOpen = !descOpen; }} title="Descrição original da PR (D)">
+        <svg viewBox="0 0 14 14" aria-hidden="true"><path d="M3.5 1.5h5l2.5 2.5v8.5h-7.5zM5.5 7h3.5M5.5 9.5h3.5" /></svg>
+        Descrição
+      </button>
       <div class="pr">
         <button class="pr-title" onclick={() => api.openURL(lastReviewUrl || session!.url)} title="Abrir no GitHub">
           {session.title}
@@ -573,6 +623,7 @@
             {#if session.fromCache}
               <button role="menuitem" class="plain" onclick={() => start(true)} title="A análise veio do cache para este commit">Reanalisar</button>
             {/if}
+            <button role="menuitem" class="plain" onclick={() => (descOpen = true)}>Descrição da PR</button>
             <button role="menuitem" class="plain" onclick={() => api.openURL(lastReviewUrl || session!.url)}>Abrir no GitHub</button>
             <button role="menuitem" class="plain" onclick={newPR}>Nova PR</button>
             <hr />
@@ -783,6 +834,7 @@
             <div><dt>Enter</dt><dd>Código em tela cheia</dd></div>
             <div><dt>Esc</dt><dd>Sair da tela cheia</dd></div>
             <div><dt>C</dt><dd>Comentar a linha ou seleção</dd></div>
+            <div><dt>D</dt><dd>Descrição original da PR</dd></div>
             <div><dt>Alt + ← →</dt><dd>Trocar de arquivo dentro do código</dd></div>
           </dl>
         {/if}
@@ -795,6 +847,10 @@
 
     {#if drawerOpen}
       <FileDrawer {session} {activePath} {visited} {drafts} onopen={openPath} onclose={() => (drawerOpen = false)} />
+    {/if}
+
+    {#if descOpen}
+      <DescriptionPanel url={session.url} author={session.author} onclose={() => (descOpen = false)} />
     {/if}
 
     {#if reviewOpen}
@@ -818,7 +874,10 @@
     {/if}
   {/if}
   {#if settingsOpen}
-    <Settings onclose={() => (settingsOpen = false)} />
+    <Settings onclose={closeSettings} />
+  {/if}
+  {#if player.libraryOpen}
+    <MusicModal onclose={() => (player.libraryOpen = false)} />
   {/if}
   {#if updateInfo}
     <UpdateModal info={updateInfo} onclose={() => (updateInfo = null)} />
@@ -862,6 +921,10 @@
     overflow: auto;
     /* fundo sólido na coluna: as estrelas passam pelas laterais, nunca por trás do texto */
     background: var(--bg);
+  }
+  /* a home lista as PRs dos projetos: mais larga para caber título, autor e os botões de modo */
+  .home {
+    width: min(1040px, 100%);
   }
   .brand {
     display: flex;

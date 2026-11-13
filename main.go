@@ -17,6 +17,7 @@ import (
 	"oddeye/internal/config"
 	"oddeye/internal/music"
 	"oddeye/internal/proc"
+	"oddeye/internal/torrent"
 	"oddeye/internal/updater"
 )
 
@@ -43,6 +44,13 @@ func main() {
 		log.Fatal(err)
 	}
 	app := NewApp(library, store, version)
+	if app.playlists, app.torrents, err = newMusicServices(); err != nil {
+		log.Fatal(err)
+	}
+	assetMiddleware := library.Middleware
+	if app.torrents != nil {
+		assetMiddleware = torrent.Chain(library.Middleware, app.torrents.Middleware)
+	}
 	err = wails.Run(&options.App{
 		Title:     "Oddeye",
 		Width:     1440,
@@ -56,7 +64,7 @@ func main() {
 			UniqueId:               "io.github.oddeye",
 			OnSecondInstanceLaunch: app.secondInstance,
 		},
-		AssetServer:      &assetserver.Options{Assets: assets, Middleware: library.Middleware},
+		AssetServer:      &assetserver.Options{Assets: assets, Middleware: assetMiddleware},
 		BackgroundColour: &options.RGBA{R: 3, G: 4, B: 7, A: 255},
 		OnStartup:        app.startup,
 		OnShutdown:       app.shutdown,

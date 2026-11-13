@@ -1,5 +1,8 @@
 import * as Go from "../../wailsjs/go/main/App";
 import { EventsOn } from "../../wailsjs/runtime/runtime";
+import type { Track, TorrentFile } from "./music";
+
+export type { Track, TorrentFile } from "./music";
 
 export type Severity = "critical" | "high" | "medium" | "";
 
@@ -179,6 +182,38 @@ export interface AudioStatus {
   hint: string;
 }
 
+export interface ArchiveItem {
+  id: string;
+  title: string;
+  creator: string;
+  date: string;
+  downloads: number;
+  license: string;
+}
+
+export interface ArchiveResult {
+  total: number;
+  items: ArchiveItem[];
+}
+
+export interface TorrentInfo {
+  infoHash: string;
+  name: string;
+  title: string;
+  size: number;
+  done: number;
+  wanted: number;
+  complete: number;
+  rate: number;
+  peers: number;
+}
+
+export interface Playlist {
+  id: string;
+  name: string;
+  tracks: Track[];
+}
+
 export type ReviewEvent = "COMMENT" | "APPROVE" | "REQUEST_CHANGES";
 
 export interface Deps {
@@ -205,13 +240,13 @@ export interface OpenPR {
   reviewRequested: string[];
 }
 
-export interface WatcherSnapshot {
-  pending: OpenPR[];
-  lastPoll: string;
-  lastError: string;
-  checking: boolean;
-  repos: number;
+/** PRs abertas de um repositório vigiado; na tela inicial cada repo é um projeto */
+export interface ProjectPRs {
+  repo: string;
+  prs: OpenPR[];
 }
+
+export const prRefLabel = (r: PRRef): string => `${r.owner}/${r.repo}#${r.number}`;
 
 export interface RepoConfig {
   owner: string;
@@ -274,8 +309,6 @@ export interface DeviceCode {
   url: string;
 }
 
-export const prRefLabel = (r: PRRef): string => `${r.owner}/${r.repo}#${r.number}`;
-
 /* As bindings geradas pelo Wails usam classes com conversores; aqui só precisamos da forma JSON. */
 export const api = {
   checkDeps: (): Promise<Deps> => Go.CheckDeps() as unknown as Promise<Deps>,
@@ -287,21 +320,40 @@ export const api = {
   removeDraft: (id: string): Promise<Draft[]> => Go.RemoveDraft(id) as unknown as Promise<Draft[]>,
   submitReview: (event: ReviewEvent, body: string): Promise<string> => Go.SubmitReview(event, body),
   openURL: (url: string): Promise<void> => Go.OpenURL(url),
+  /** descrição original da PR aberta, em HTML renderizado pelo GitHub (URLs de mídia expiram: busque a cada abertura) */
+  prDescription: (): Promise<string> => Go.PRDescription(),
   listMusic: (): Promise<MusicLibrary> => Go.ListMusic() as unknown as Promise<MusicLibrary>,
   chooseMusicFolder: (): Promise<MusicLibrary | null> => Go.ChooseMusicFolder() as unknown as Promise<MusicLibrary | null>,
   openMusicFolder: (): Promise<void> => Go.OpenMusicFolder(),
   audioStatus: (): Promise<AudioStatus> => Go.AudioStatus() as unknown as Promise<AudioStatus>,
   musicURL: (track: string): string => "/music/" + encodeURIComponent(track),
+  searchArchive: (query: string, page: number): Promise<ArchiveResult> => Go.SearchArchive(query, page) as unknown as Promise<ArchiveResult>,
+  addArchiveItem: (id: string, title: string): Promise<TorrentInfo> => Go.AddArchiveItem(id, title) as unknown as Promise<TorrentInfo>,
+  addTorrent: (src: string): Promise<TorrentInfo> => Go.AddTorrent(src) as unknown as Promise<TorrentInfo>,
+  chooseTorrentFile: (): Promise<TorrentInfo | null> => Go.ChooseTorrentFile() as unknown as Promise<TorrentInfo | null>,
+  listTorrents: (): Promise<TorrentInfo[]> => Go.ListTorrents() as unknown as Promise<TorrentInfo[]>,
+  torrentFiles: (hash: string): Promise<TorrentFile[]> => Go.TorrentFiles(hash) as unknown as Promise<TorrentFile[]>,
+  downloadTrack: (hash: string, path: string, urgent: boolean): Promise<TorrentFile> =>
+    Go.DownloadTrack(hash, path, urgent) as unknown as Promise<TorrentFile>,
+  removeTorrent: (hash: string, deleteFiles: boolean): Promise<void> => Go.RemoveTorrent(hash, deleteFiles),
+  onTorrentProgress: (cb: (list: TorrentInfo[]) => void): (() => void) => EventsOn("torrent:progress", cb),
+  listPlaylists: (): Promise<Playlist[]> => Go.ListPlaylists() as unknown as Promise<Playlist[]>,
+  createPlaylist: (name: string): Promise<Playlist> => Go.CreatePlaylist(name) as unknown as Promise<Playlist>,
+  renamePlaylist: (id: string, name: string): Promise<void> => Go.RenamePlaylist(id, name),
+  deletePlaylist: (id: string): Promise<void> => Go.DeletePlaylist(id),
+  addToPlaylist: (id: string, tracks: Track[]): Promise<Playlist> =>
+    Go.AddToPlaylist(id, tracks as unknown as Parameters<typeof Go.AddToPlaylist>[1]) as unknown as Promise<Playlist>,
+  removeFromPlaylist: (id: string, trackID: string): Promise<Playlist> => Go.RemoveFromPlaylist(id, trackID) as unknown as Promise<Playlist>,
+  movePlaylistTrack: (id: string, from: number, to: number): Promise<Playlist> =>
+    Go.MovePlaylistTrack(id, from, to) as unknown as Promise<Playlist>,
   onProgress: (cb: (p: Progress) => void): (() => void) => EventsOn("analysis:progress", cb),
   getSettings: (): Promise<SettingsView> => Go.GetSettings() as unknown as Promise<SettingsView>,
   saveSettings: (c: Config): Promise<Config> =>
     Go.SaveSettings(c as unknown as Parameters<typeof Go.SaveSettings>[0]) as unknown as Promise<Config>,
   listRepos: (): Promise<RepoOption[]> => Go.ListRepos() as unknown as Promise<RepoOption[]>,
-  watcherState: (): Promise<WatcherSnapshot> => Go.WatcherState() as unknown as Promise<WatcherSnapshot>,
-  checkNow: (): Promise<void> => Go.CheckNow(),
+  openPRsByProject: (): Promise<ProjectPRs[]> => Go.OpenPRsByProject() as unknown as Promise<ProjectPRs[]>,
   authorizeGitHub: (): Promise<void> => Go.AuthorizeGitHub(),
   cancelAuthorize: (): Promise<void> => Go.CancelAuthorize(),
-  onWatcher: (cb: (s: WatcherSnapshot) => void): (() => void) => EventsOn("watcher:update", cb),
   onOpenPR: (cb: (ref: string) => void): (() => void) => EventsOn("pr:open", cb),
   onShowSettings: (cb: () => void): (() => void) => EventsOn("ui:settings", cb),
   onDeviceCode: (cb: (d: DeviceCode) => void): (() => void) => EventsOn("gh:device-code", cb),

@@ -1,3 +1,62 @@
+export namespace archive {
+	
+	export class Item {
+	    id: string;
+	    title: string;
+	    creator: string;
+	    date: string;
+	    downloads: number;
+	    license: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new Item(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.title = source["title"];
+	        this.creator = source["creator"];
+	        this.date = source["date"];
+	        this.downloads = source["downloads"];
+	        this.license = source["license"];
+	    }
+	}
+	export class Result {
+	    total: number;
+	    items: Item[];
+	
+	    static createFrom(source: any = {}) {
+	        return new Result(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.total = source["total"];
+	        this.items = this.convertValues(source["items"], Item);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+
+}
+
 export namespace audio {
 	
 	export class Status {
@@ -624,6 +683,38 @@ export namespace main {
 		    return a;
 		}
 	}
+	export class ProjectPRs {
+	    repo: string;
+	    prs: gh.OpenPR[];
+	
+	    static createFrom(source: any = {}) {
+	        return new ProjectPRs(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.repo = source["repo"];
+	        this.prs = this.convertValues(source["prs"], gh.OpenPR);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
 	export class SessionView {
 	    ref: gh.PRRef;
 	    title: string;
@@ -768,6 +859,69 @@ export namespace music {
 
 }
 
+export namespace playlist {
+	
+	export class Track {
+	    id: string;
+	    title: string;
+	    artist: string;
+	    source: string;
+	    name?: string;
+	    infoHash?: string;
+	    path?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new Track(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.title = source["title"];
+	        this.artist = source["artist"];
+	        this.source = source["source"];
+	        this.name = source["name"];
+	        this.infoHash = source["infoHash"];
+	        this.path = source["path"];
+	    }
+	}
+	export class Playlist {
+	    id: string;
+	    name: string;
+	    tracks: Track[];
+	
+	    static createFrom(source: any = {}) {
+	        return new Playlist(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.name = source["name"];
+	        this.tracks = this.convertValues(source["tracks"], Track);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+
+}
+
 export namespace review {
 	
 	export class Draft {
@@ -806,6 +960,59 @@ export namespace review {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.path = source["path"];
 	        this.reason = source["reason"];
+	    }
+	}
+
+}
+
+export namespace torrent {
+	
+	export class File {
+	    path: string;
+	    size: number;
+	    done: number;
+	    complete: boolean;
+	    wanted: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new File(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.path = source["path"];
+	        this.size = source["size"];
+	        this.done = source["done"];
+	        this.complete = source["complete"];
+	        this.wanted = source["wanted"];
+	    }
+	}
+	export class Info {
+	    infoHash: string;
+	    name: string;
+	    title: string;
+	    size: number;
+	    done: number;
+	    wanted: number;
+	    complete: number;
+	    rate: number;
+	    peers: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new Info(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.infoHash = source["infoHash"];
+	        this.name = source["name"];
+	        this.title = source["title"];
+	        this.size = source["size"];
+	        this.done = source["done"];
+	        this.wanted = source["wanted"];
+	        this.complete = source["complete"];
+	        this.rate = source["rate"];
+	        this.peers = source["peers"];
 	    }
 	}
 
