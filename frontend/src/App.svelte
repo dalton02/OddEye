@@ -690,7 +690,7 @@
   }
   .loading-row {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: 22px;
     width: 100%;
   }
@@ -929,7 +929,8 @@
   }
   .claude {
     display: flex;
-    align-items: center;
+    /* topo: a logo fica parada enquanto o texto do balão cresce */
+    align-items: flex-start;
     gap: 18px;
     padding: 12px 84px 10px 40px;
   }
