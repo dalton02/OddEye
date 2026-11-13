@@ -199,7 +199,7 @@
     if (activePath === null) {
       if (session.files.length === 0) return session.summary;
       const n = session.files.length;
-      return `${session.summary}\n\nDos ${session.totalFiles} arquivos, separei ${n} que merecem sua atenção. Use as setas para começar o tour.`;
+      return `${session.summary}\n\nDos ${session.totalFiles} arquivos, separei ${n} que merecem sua atenção. Use as setas (ou h/l) para começar o tour.`;
     }
     if (entry?.explanation) return entry.explanation;
     if (citedBy) return `Esse arquivo não foi alterado nesta PR. Eu citei ele em \`${citedBy.from}\`: ${citedBy.why}`;
@@ -330,7 +330,7 @@
       goChapter(delta);
       return;
     }
-    const base = inTour ? index : activePath === null ? -1 : -1;
+    const base = inTour ? index : -1;
     const target = base + delta;
     if (target < 0) {
       activePath = null;
@@ -380,15 +380,18 @@
     link = "";
   }
 
+  const TOUR_STEP: Record<string, -1 | 1> = { ArrowLeft: -1, h: -1, k: -1, ArrowRight: 1, l: 1, j: 1 };
+
   function onKey(e: KeyboardEvent): void {
-    if (phase !== "tour" || reviewOpen) return;
+    if (phase !== "tour" || reviewOpen || settingsOpen || updateInfo) return;
     const el = document.activeElement as HTMLElement | null;
     const typingField = el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA") && !el.closest(".monaco-editor");
     if (typingField) return;
     const inEditor = !!el?.closest(".monaco-editor");
-    if ((e.key === "ArrowRight" || e.key === "ArrowLeft") && (e.altKey || !inEditor)) {
+    const step = TOUR_STEP[e.key];
+    if (step && !e.ctrlKey && !e.metaKey && (e.altKey || !inEditor)) {
       e.preventDefault();
-      go(e.key === "ArrowRight" ? 1 : -1);
+      go(step);
     } else if ((e.key === "c" || e.key === "C") && file && !e.ctrlKey && !e.metaKey) {
       e.preventDefault();
       codeView?.commentSelectionOrCursor();
@@ -685,7 +688,7 @@
         {/if}
       </span>
       <span class="hint">
-        {blueprint && activePath === null ? "← → andam pelos capítulos e pelos passos do fluxo" : "← → navegam · C comenta · Alt+← → dentro do código"}
+        {blueprint && activePath === null ? "← → ou hjkl andam pelos capítulos e pelos passos do fluxo" : "← → ou hjkl navegam · C comenta · Alt+← → dentro do código"}
       </span>
       <MusicPlayer />
       <button class="btn primary" onclick={() => (reviewOpen = true)}>
