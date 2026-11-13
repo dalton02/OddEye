@@ -46,8 +46,8 @@ export function ListRepos() {
   return window['go']['main']['App']['ListRepos']();
 }
 
-export function LoadPR(arg1, arg2) {
-  return window['go']['main']['App']['LoadPR'](arg1, arg2);
+export function LoadPR(arg1, arg2, arg3) {
+  return window['go']['main']['App']['LoadPR'](arg1, arg2, arg3);
 }
 
 export function OpenFile(arg1) {

@@ -7,12 +7,15 @@
     onsubmit: (event: ReviewEvent, body: string) => Promise<void>;
     onclose: () => void;
     onjump: (d: Draft) => void;
+    /** texto que já abre no comentário geral (perguntas levadas do modo Arquiteto) */
+    initialBody?: string;
   }
 
-  let { drafts, prLabel, onsubmit, onclose, onjump }: Props = $props();
+  let { drafts, prLabel, onsubmit, onclose, onjump, initialBody = "" }: Props = $props();
 
   let event = $state<ReviewEvent>("COMMENT");
-  let body = $state("");
+  // svelte-ignore state_referenced_locally
+  let body = $state(initialBody);
   let confirming = $state(false);
   let sending = $state(false);
   let error = $state("");

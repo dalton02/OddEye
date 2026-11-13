@@ -12,10 +12,13 @@
   import UpdateModal from "./lib/UpdateModal.svelte";
   import Inbox from "./lib/Inbox.svelte";
   import Setup from "./lib/Setup.svelte";
+  import ArchitectView from "./lib/architect/ArchitectView.svelte";
+  import { chaptersOf, narrate, ownerOf, prKindLabel } from "./lib/architect/chapters";
   import { player } from "./lib/player.svelte";
   import {
     api,
     errorMessage,
+    modeLabel,
     severityLabel,
     type Config,
     type Deps,
@@ -24,6 +27,7 @@
     type OpenPR,
     type WatcherSnapshot,
     type FileView,
+    type Mode,
     type Progress,
     type ReviewEvent,
     type Session,
@@ -61,6 +65,20 @@
   /* de onde o usuário veio ao seguir um link de arquivo; undefined = não veio por link (null = visão geral) */
   let backTo = $state<string | null | undefined>(undefined);
 
+  /* modo de revisor da próxima análise; no tour acompanha o modo da sessão aberta */
+  let mode = $state<Mode>("code");
+  /* modo Arquiteto: capítulo atual, passo do fluxo (-1 = fluxo inteiro), componente clicado no mapa e
+     perguntas marcadas para o review */
+  let chapterIdx = $state(0);
+  let flowStep = $state(-1);
+  let selectedNode = $state<string | null>(null);
+  let picked = $state<string[]>([]);
+
+  const modes: { value: Mode; hint: string }[] = [
+    { value: "code", hint: "O Claude separa os arquivos críticos e te guia pelo código, arquivo por arquivo." },
+    { value: "architect", hint: "O Claude explica a abordagem, os trade-offs e a arquitetura com diagramas, sem falar de código." }
+  ];
+
   const RECENT_KEY = "oddeye:recent";
 
   /* primeira execução: avisa que o app vai abrir junto com o sistema (a opção já vem ligada) */
@@ -84,6 +102,7 @@
     });
     api.getSettings().then((v) => {
       if (v.config.launchAtLogin && !v.config.autostartNoticeSeen) autostartNotice = v.config;
+      if (phase === "home") mode = v.config.defaultMode;
     });
     void player.init();
     try {
@@ -106,7 +125,12 @@
       api.onOpenPR((ref) => {
         if (phase === "loading") return;
         link = ref;
-        void start();
+        /* PR aberta de fora da janela usa o modo padrão das configurações, que pode ter mudado */
+        api
+          .getSettings()
+          .then((v) => (mode = v.config.defaultMode))
+          .catch(() => {})
+          .finally(() => void start());
       })
     ];
     return () => offs.forEach((off) => off());
@@ -126,6 +150,14 @@
   const inTour = $derived(activePath !== null && tourFiles.some((f) => f.path === activePath));
   const entry = $derived(tourFiles.find((f) => f.path === activePath));
   const attention = $derived(entry?.attention ?? file?.attention ?? []);
+  const blueprint = $derived(session?.mode === "architect" ? session.blueprint : null);
+  const chapters = $derived(blueprint ? chaptersOf(blueprint) : []);
+  const chapter = $derived(chapters[Math.min(chapterIdx, chapters.length - 1)]);
+  const flowSteps = $derived(blueprint && chapter?.kind === "flow" ? blueprint.flows[chapter.flow].steps.length : 0);
+  const reviewBody = $derived(picked.map((q) => "- " + q).join("\n"));
+  /* a narração de arquitetura não cita arquivo, então nada nela vira link */
+  const noLinks = (): null => null;
+
   const skippedReason = $derived(session?.skipped.find((s) => s.path === activePath)?.reason ?? "");
 
   const resolve = $derived(
@@ -160,6 +192,9 @@
       return progress?.message ?? "Preparando a nave...";
     }
     if (!session) return "";
+    if (blueprint && chapter && activePath === null) {
+      return narrate(blueprint, chapter, { step: flowStep, selectedNode, chapters: chapters.length });
+    }
     if (activePath === null) {
       if (session.files.length === 0) return session.summary;
       const n = session.files.length;
@@ -170,19 +205,30 @@
     if (fileLoading || !file) return "Abrindo o arquivo...";
     if (!file.inPR) return "Esse arquivo não foi alterado nesta PR: está aqui só como contexto. Comentários nele vão no corpo do review.";
     if (skippedReason) return `Esse aqui eu descartei logo de cara (${skippedReason}). Mas fica à vontade para conferir.`;
+    if (blueprint) {
+      const owner = ownerOf(blueprint, file.path);
+      if (owner) return `Esse arquivo faz parte de ${owner.label}. ${owner.role}`;
+      return "Esse arquivo foi alterado na PR, mas não pertence a nenhum componente do mapa.";
+    }
     return "Esse arquivo não entrou na minha seleção: a mudança dele me pareceu de baixo risco. Mas fica à vontade para revisar.";
   });
 
-  async function start(force = false): Promise<void> {
-    const url = (session?.url && force ? session.url : link).trim();
+  /* reuse: recarrega a PR já aberta (troca de modo) em vez de ler o campo de link */
+  async function start(force = false, reuse = false): Promise<void> {
+    const url = (session?.url && (force || reuse) ? session.url : link).trim();
     if (!url) return;
     error = "";
     progress = null;
     progressLog = [];
     phase = "loading";
     try {
-      const s = await api.loadPR(url, force);
+      const s = await api.loadPR(url, mode, force);
       session = s;
+      mode = s.mode;
+      chapterIdx = 0;
+      flowStep = -1;
+      selectedNode = null;
+      picked = [];
       drafts = s.drafts;
       visited = new Set();
       index = -1;
@@ -197,8 +243,50 @@
       }
     } catch (e) {
       error = errorMessage(e);
-      phase = session && force ? "tour" : "home";
+      phase = session && (force || reuse) ? "tour" : "home";
+      if (session && phase === "tour") mode = session.mode;
     }
+  }
+
+  function switchMode(m: Mode): void {
+    if (m === mode) return;
+    mode = m;
+    if (phase === "tour") void start(false, true);
+  }
+
+  /* Modo Arquiteto: as setas andam pelos passos de um fluxo antes de trocar de capítulo. */
+  function goChapter(delta: number): void {
+    if (!blueprint) return;
+    celebrate = "";
+    if (activePath !== null) {
+      /* estava num arquivo aberto a partir do mapa: volta para o capítulo */
+      activePath = null;
+      index = -1;
+      file = null;
+      backTo = undefined;
+      return;
+    }
+    if (chapter?.kind === "flow") {
+      const next = flowStep + delta;
+      if (next >= -1 && next < flowSteps) {
+        flowStep = next;
+        return;
+      }
+    }
+    jumpChapter(chapterIdx + delta, delta < 0);
+  }
+
+  function jumpChapter(target: number, fromEnd = false): void {
+    if (!blueprint || target < 0) return;
+    if (target >= chapters.length) {
+      reviewOpen = true;
+      return;
+    }
+    celebrate = "";
+    chapterIdx = target;
+    const c = chapters[target];
+    /* voltando para um fluxo, cai no último passo: a seta para trás desfaz exatamente a seta para a frente */
+    flowStep = fromEnd && c.kind === "flow" ? blueprint.flows[c.flow].steps.length - 1 : -1;
   }
 
   function followLink(path: string): void {
@@ -237,6 +325,10 @@
 
   function go(delta: number): void {
     if (!session || reviewOpen) return;
+    if (blueprint) {
+      goChapter(delta);
+      return;
+    }
     const base = inTour ? index : activePath === null ? -1 : -1;
     const target = base + delta;
     if (target < 0) {
@@ -264,6 +356,7 @@
   async function submitReview(event: ReviewEvent, body: string): Promise<void> {
     const url = await api.submitReview(event, body);
     drafts = [];
+    picked = [];
     reviewOpen = false;
     celebrate = "Review publicado no GitHub! Obrigado por revisar com atenção. Clique no link no topo para ver a PR.";
     lastReviewUrl = url;
@@ -333,6 +426,15 @@
         <button class="btn primary" type="submit" disabled={!link.trim() || !depsOk}>Decolar</button>
       </form>
 
+      <div class="mode-pick">
+        <div class="modes" role="group" aria-label="Modo de revisor">
+          {#each modes as m (m.value)}
+            <button class:on={mode === m.value} aria-pressed={mode === m.value} onclick={() => switchMode(m.value)}>{modeLabel[m.value]}</button>
+          {/each}
+        </div>
+        <span>{modes.find((m) => m.value === mode)?.hint}</span>
+      </div>
+
       {#if error}<p class="error">{error}</p>{/if}
 
       {#if autostartNotice}
@@ -373,7 +475,7 @@
         <img class="logo" src={logo} width="140" height="140" alt="" />
         <div class="bubble big">
           <p class="speech">{speech}</p>
-          {#if progress?.files}
+          {#if progress?.files && mode === "code"}
             <p class="count">{progress.files} arquivo{progress.files === 1 ? "" : "s"} explicado{progress.files === 1 ? "" : "s"}</p>
           {/if}
         </div>
@@ -397,6 +499,13 @@
           · <b class="add">+{session.additions}</b> <b class="del">-{session.deletions}</b>
         </span>
       </div>
+      <div class="modes" role="group" aria-label="Modo de revisor">
+        {#each modes as m (m.value)}
+          <button class:on={mode === m.value} aria-pressed={mode === m.value} title={m.hint} onclick={() => switchMode(m.value)}>
+            {modeLabel[m.value]}
+          </button>
+        {/each}
+      </div>
       {#if session.fromCache}
         <button class="btn" onclick={() => start(true)} title="A análise veio do cache para este commit">Reanalisar</button>
       {/if}
@@ -407,16 +516,22 @@
       <img class="logo" src={logo} width="104" height="104" alt="" />
       <div class="bubble">
         <div class="bubble-head">
-          {#if activePath}
+          {#if blueprint && chapter && activePath === null}
+            <span class="sev none">{chapterIdx === 0 ? (prKindLabel[blueprint.kind] ?? "Arquitetura") : `Capítulo ${chapterIdx}`}</span>
+            <span class="fname plain">{chapter.kind === "flow" ? "Fluxo: " : ""}{chapter.title}</span>
+            {#if chapter.kind === "flow" && flowStep >= 0}<span class="why">passo {flowStep + 1} de {flowSteps}</span>{/if}
+          {:else if activePath}
             {@const severity = entry?.severity ?? ""}
-            <span class="sev {severity || 'none'}">{severityLabel[severity]}</span>
+            {#if !blueprint}<span class="sev {severity || 'none'}">{severityLabel[severity]}</span>{/if}
             <span class="fname" title={activePath}>{entry ? short(activePath) : activePath}</span>
             {#if entry?.why}<span class="why">{entry.why}</span>{/if}
           {:else if activePath === null}
             <span class="fname">Visão geral da PR</span>
           {/if}
           {#if backTo !== undefined}
-            <button class="back" onclick={goBack}>← voltar para {backTo === null ? "a visão geral" : short(backTo)}</button>
+            <button class="back" onclick={goBack}>
+              ← voltar para {backTo === null ? (blueprint ? "o " + (chapter?.title ?? "tour").toLowerCase() : "a visão geral") : short(backTo)}
+            </button>
           {/if}
         </div>
         <div class="speech-box" role="presentation" onclick={() => richText?.finish()}>
@@ -424,9 +539,9 @@
             <RichText
               bind:this={richText}
               text={speech}
-              {resolve}
+              resolve={blueprint && activePath === null ? noLinks : resolve}
               onlink={followLink}
-              instant={revisit}
+              instant={revisit && !blueprint}
               ontyping={(t) => (typing = t)}
             />
           </p>
@@ -467,12 +582,30 @@
     </section>
 
     <section class="stage">
-      <button class="arrow" onclick={() => go(-1)} disabled={activePath === null} aria-label="Arquivo anterior">
+      <button
+        class="arrow"
+        onclick={() => go(-1)}
+        disabled={activePath === null && (!blueprint || (chapterIdx === 0 && flowStep < 0))}
+        aria-label="Anterior"
+      >
         <svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7" /></svg>
       </button>
 
       <div class="center">
-        {#if activePath === null}
+        {#if blueprint && chapter && activePath === null}
+          <ArchitectView
+            {blueprint}
+            {session}
+            {chapters}
+            {chapter}
+            bind:step={flowStep}
+            bind:selectedNode
+            bind:picked
+            onjump={jumpChapter}
+            onopenfile={followLink}
+            onreview={() => (reviewOpen = true)}
+          />
+        {:else if activePath === null}
           <div class="overview">
             {#if session.files.length === 0}
               <p class="empty">Nada crítico nesta PR. Abra a lista de arquivos se quiser revisar mesmo assim.</p>
@@ -503,14 +636,30 @@
         {/if}
       </div>
 
-      <button class="arrow" onclick={() => go(1)} aria-label="Próximo arquivo">
+      <button class="arrow" onclick={() => go(1)} aria-label="Próximo">
         <svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7" /></svg>
       </button>
     </section>
 
     <footer class="bottombar">
       <div class="dots">
-        <button class="dot overview-dot" class:current={activePath === null} onclick={() => go(-index - 1)} title="Visão geral"></button>
+        {#if blueprint}
+          {#each chapters as c, i (i)}
+            <button
+              class="dot"
+              class:overview-dot={i === 0}
+              class:seen={i < chapterIdx}
+              class:current={activePath === null && i === chapterIdx}
+              onclick={() => {
+                if (activePath !== null) goChapter(0);
+                jumpChapter(i);
+              }}
+              title="{i === 0 ? '' : i + '. '}{c.title}"
+            ></button>
+          {/each}
+        {:else}
+          <button class="dot overview-dot" class:current={activePath === null} onclick={() => go(-index - 1)} title="Visão geral"></button>
+        {/if}
         {#each tourFiles as f, i (f.path)}
           <button
             class="dot {f.severity}"
@@ -522,7 +671,11 @@
         {/each}
       </div>
       <span class="pos">
-        {#if activePath === null}
+        {#if blueprint && activePath === null}
+          {chapterIdx === 0 ? "Visão geral" : `Capítulo ${chapterIdx} de ${chapters.length - 1}`}
+        {:else if blueprint}
+          Código
+        {:else if activePath === null}
           Visão geral
         {:else if inTour}
           Arquivo {index + 1} de {tourFiles.length}
@@ -530,7 +683,9 @@
           Fora do tour
         {/if}
       </span>
-      <span class="hint">← → navegam · C comenta · Alt+← → dentro do código</span>
+      <span class="hint">
+        {blueprint && activePath === null ? "← → andam pelos capítulos e pelos passos do fluxo" : "← → navegam · C comenta · Alt+← → dentro do código"}
+      </span>
       <MusicPlayer />
       <button class="btn primary" onclick={() => (reviewOpen = true)}>
         Enviar review{drafts.length ? ` (${drafts.length})` : ""}
@@ -548,6 +703,7 @@
         onsubmit={submitReview}
         onclose={() => (reviewOpen = false)}
         onjump={jumpToDraft}
+        initialBody={reviewBody}
       />
     {/if}
 
@@ -580,6 +736,46 @@
     top: 16px;
     right: 18px;
     z-index: 10;
+  }
+
+  /* Seletor de modo de revisor (home e topo do tour) */
+  .modes {
+    display: inline-flex;
+    flex-shrink: 0;
+    padding: 3px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 11px;
+  }
+  .modes button {
+    border: none;
+    background: none;
+    color: var(--muted);
+    padding: 5px 13px;
+    border-radius: 8px;
+    font-size: 13px;
+  }
+  .modes button:hover {
+    color: var(--text);
+  }
+  .modes button.on {
+    background: rgba(217, 119, 87, 0.22);
+    color: var(--text);
+    font-weight: 700;
+  }
+  .mode-pick {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 12px;
+    width: 100%;
+    text-align: left;
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .fname.plain {
+    font-family: var(--ui);
+    font-size: 14.5px;
   }
 
   /* Home */

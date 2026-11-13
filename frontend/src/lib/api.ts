@@ -39,6 +39,85 @@ export interface Draft {
   inDiff: boolean;
 }
 
+export type Mode = "code" | "architect";
+
+export const modeLabel: Record<Mode, string> = { code: "Código", architect: "Arquiteto" };
+
+export type NodeKind = "actor" | "interface" | "service" | "worker" | "store" | "queue" | "external";
+export type Change = "new" | "changed" | "removed" | "context";
+export type EdgeStyle = "sync" | "async" | "data";
+export type ImpactAxisName = "simplicity" | "reliability" | "performance" | "maintainability" | "decoupling" | "operability";
+
+export interface BlueprintNode {
+  id: string;
+  label: string;
+  kind: NodeKind;
+  change: Change;
+  role: string;
+  files: string[];
+  weight: { additions: number; deletions: number };
+}
+
+export interface BlueprintEdge {
+  from: string;
+  to: string;
+  label: string;
+  style: EdgeStyle;
+  change: Change;
+}
+
+export interface FlowStep {
+  from: string;
+  to: string;
+  action: string;
+  note: string;
+  change: Change;
+}
+
+export interface Flow {
+  title: string;
+  summary: string;
+  steps: FlowStep[];
+}
+
+export interface Decision {
+  title: string;
+  chosen: string;
+  why: string;
+  gains: string[];
+  costs: string[];
+  alternatives: { name: string; whyNot: string }[];
+}
+
+export interface ImpactAxis {
+  axis: ImpactAxisName;
+  score: number;
+  note: string;
+}
+
+export interface Risk {
+  title: string;
+  detail: string;
+  level: "high" | "medium" | "low";
+  node: string;
+}
+
+/** Leitura de arquitetura da PR (modo Arquiteto). Nenhum texto cita código; os arquivos ficam em nodes[].files. */
+export interface Blueprint {
+  headline: string;
+  kind: string;
+  summary: string;
+  before: string;
+  after: string;
+  nodes: BlueprintNode[];
+  edges: BlueprintEdge[];
+  flows: Flow[];
+  decisions: Decision[];
+  impact: ImpactAxis[];
+  risks: Risk[];
+  questions: string[];
+}
+
 export interface Session {
   ref: { owner: string; repo: string; number: number };
   title: string;
@@ -56,6 +135,8 @@ export interface Session {
   drafts: Draft[];
   fromCache: boolean;
   repoFiles: string[];
+  mode: Mode;
+  blueprint: Blueprint | null;
 }
 
 export interface FileView {
@@ -143,6 +224,8 @@ export interface Config {
   skippedVersion: string;
   notifyOwnPRs: boolean;
   includeDrafts: boolean;
+  defaultMode: Mode;
+  architectPrompt: string;
 }
 
 export interface UpdateInfo {
@@ -167,6 +250,7 @@ export interface UpdateProgress {
 export interface SettingsView {
   config: Config;
   defaultPrompt: string;
+  defaultArchitectPrompt: string;
   configDir: string;
 }
 
@@ -186,7 +270,8 @@ export const prRefLabel = (r: PRRef): string => `${r.owner}/${r.repo}#${r.number
 /* As bindings geradas pelo Wails usam classes com conversores; aqui só precisamos da forma JSON. */
 export const api = {
   checkDeps: (): Promise<Deps> => Go.CheckDeps() as unknown as Promise<Deps>,
-  loadPR: (url: string, force: boolean): Promise<Session> => Go.LoadPR(url, force) as unknown as Promise<Session>,
+  loadPR: (url: string, mode: Mode, force: boolean): Promise<Session> =>
+    Go.LoadPR(url, mode, force) as unknown as Promise<Session>,
   cancel: (): Promise<void> => Go.CancelAnalysis(),
   openFile: (path: string): Promise<FileView> => Go.OpenFile(path) as unknown as Promise<FileView>,
   saveDraft: (d: DraftInput): Promise<Draft[]> => Go.SaveDraft(d) as unknown as Promise<Draft[]>,

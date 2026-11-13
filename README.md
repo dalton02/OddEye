@@ -73,10 +73,27 @@ Na primeira varredura de um repositório recém-adicionado, as PRs que já estav
 vistas sem notificar, para não chegar uma enxurrada de avisos de uma vez. Para sair do app de verdade,
 use **Sair** no menu da bandeja.
 
+### Modos de revisor
+
+O mesmo tour pode ser feito de dois jeitos. Escolha na tela inicial, ao lado do link, ou troque no topo do
+tour a qualquer momento (cada modo tem o seu cache, então voltar ao anterior é instantâneo):
+
+- **Código**: o Claude separa os arquivos críticos e explica cada um com o código na tela. É o modo para
+  achar problema de linha e comentar.
+- **Arquiteto**: o Claude não fala de código. Ele explica a abordagem da PR em capítulos: um mapa dos
+  componentes do sistema com o que é novo, alterado e removido (e a visão de antes e depois), os fluxos
+  passo a passo, as decisões com o que cada uma ganha e custa, o impacto em seis eixos da arquitetura, os
+  riscos e as perguntas que valem levar para o autor. Clicar num componente mostra os arquivos dele, para
+  descer ao código só onde interessa.
+
+O modo Arquiteto enxerga o diff e a lista de pastas do repositório, não o repositório inteiro: o mapa cobre
+a parte do sistema que a PR toca. Em **Configurações** dá para escolher o modo padrão (usado nas PRs abertas
+pela bandeja e na pré-análise) e editar as instruções de cada modo.
+
 ### Opções por repositório
 
 - **Só avisar quando pedirem o meu review**: ignora PRs em que você não é revisor.
-- **Pré-analisar com o Claude ao chegar**: roda a triagem em segundo plano assim que a PR chega, e abrir
+- **Pré-analisar com o Claude ao chegar**: roda a análise do modo padrão em segundo plano assim que a PR chega, e abrir
   o tour fica instantâneo. Cada PR nova gasta uma análise do seu plano do Claude, por isso vem desligado.
 - **Instruções próprias**: um prompt de revisor só para aquele repositório.
 

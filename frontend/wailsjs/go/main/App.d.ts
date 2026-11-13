@@ -29,7 +29,7 @@ export function ListMusic():Promise<music.Library>;
 
 export function ListRepos():Promise<Array<gh.Repo>>;
 
-export function LoadPR(arg1:string,arg2:boolean):Promise<main.SessionView>;
+export function LoadPR(arg1:string,arg2:string,arg3:boolean):Promise<main.SessionView>;
 
 export function OpenFile(arg1:string):Promise<main.FileView>;
 

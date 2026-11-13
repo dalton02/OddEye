@@ -90,6 +90,22 @@ const schema = `{
   "required": ["summary", "files"]
 }`
 
+// Mode é o tipo de leitura que o revisor faz da PR.
+type Mode string
+
+const (
+	ModeCode      Mode = "code"      // triagem dos arquivos críticos, com o código na tela
+	ModeArchitect Mode = "architect" // abordagem, trade-offs e arquitetura, sem falar de código
+)
+
+// ParseMode aceita o valor vindo da configuração ou do frontend; o que não reconhece vira ModeCode.
+func ParseMode(s string) Mode {
+	if Mode(strings.TrimSpace(s)) == ModeArchitect {
+		return ModeArchitect
+	}
+	return ModeCode
+}
+
 const (
 	maxPatchLines = 400
 	maxPromptSize = 300_000
@@ -152,7 +168,11 @@ func Instructions(custom string) string {
 // CacheKey resume o que muda o resultado da análise além do commit (instruções e modelo), para que
 // trocar o prompt ou o modelo não devolva a análise antiga do cache.
 func CacheKey(instructions, model string) string {
-	sum := sha256.Sum256([]byte(Instructions(instructions) + "\x00" + model))
+	return cacheKey(Instructions(instructions), model)
+}
+
+func cacheKey(effective, model string) string {
+	sum := sha256.Sum256([]byte(effective + "\x00" + model))
 	return hex.EncodeToString(sum[:])[:12]
 }
 
@@ -164,7 +184,14 @@ func BuildPrompt(pr gh.PRInfo, candidates []gh.File, skipped []review.Skipped, i
 	b.WriteString(Instructions(instructions))
 	b.WriteString("\n\n")
 	fmt.Fprintf(&b, formatContract, MaxFiles)
-	fmt.Fprintf(&b, `
+	writePR(&b, pr, skipped, "## Arquivos já descartados (não escolha estes)")
+	writeCandidates(&b, candidates)
+	return b.String()
+}
+
+// writePR escreve o cabeçalho da PR e a lista dos arquivos que ficaram fora dos candidatos.
+func writePR(b *strings.Builder, pr gh.PRInfo, skipped []review.Skipped, skippedTitle string) {
+	fmt.Fprintf(b, `
 # PR: %s
 Autor: %s | %s -> %s | +%d -%d
 
@@ -174,13 +201,16 @@ Autor: %s | %s -> %s | +%d -%d
 `, pr.Title, pr.Author.Login, pr.HeadRefName, pr.BaseRefName, pr.Additions, pr.Deletions, strings.TrimSpace(pr.Body))
 
 	if len(skipped) > 0 {
-		b.WriteString("## Arquivos já descartados (não escolha estes)\n")
+		b.WriteString(skippedTitle + "\n")
 		for _, s := range skipped {
-			fmt.Fprintf(&b, "- %s (%s)\n", s.Path, s.Reason)
+			fmt.Fprintf(b, "- %s (%s)\n", s.Path, s.Reason)
 		}
 		b.WriteString("\n")
 	}
+}
 
+// writeCandidates escreve os diffs numerados até o orçamento do prompt; o que não cabe entra sem diff.
+func writeCandidates(b *strings.Builder, candidates []gh.File) {
 	b.WriteString("## Arquivos candidatos\n\n")
 	budget := maxPromptSize - b.Len()
 	for _, f := range candidates {
@@ -193,7 +223,6 @@ Autor: %s | %s -> %s | +%d -%d
 		budget -= len(block)
 		b.WriteString(block)
 	}
-	return b.String()
 }
 
 var hunkHeader = regexp.MustCompile(`^@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@`)
@@ -247,6 +276,25 @@ var pathInJSON = regexp.MustCompile(`"path"\s*:\s*"([^"]+)"`)
 
 // Analyze roda o Claude e devolve a triagem. onProgress recebe atualizações do stream.
 func Analyze(ctx context.Context, prompt, model string, onProgress func(Progress)) (Analysis, error) {
+	var a Analysis
+	describe := func(partial string) (string, int) {
+		matches := pathInJSON.FindAllStringSubmatch(partial, -1)
+		if len(matches) == 0 {
+			return "", 0
+		}
+		return "Explicando " + matches[len(matches)-1][1], len(matches)
+	}
+	if err := run(ctx, prompt, model, schema, &a, onProgress, describe); err != nil {
+		return Analysis{}, err
+	}
+	onProgress(Progress{Stage: "done", Message: "Pronto!", Files: len(a.Files)})
+	return a, nil
+}
+
+// run executa o Claude Code headless com o schema dado e decodifica a resposta em out. describe lê o
+// JSON parcial que o Claude já escreveu e devolve a mensagem de progresso e quantos itens estão prontos;
+// só vira evento quando a contagem avança.
+func run(ctx context.Context, prompt, model, schema string, out any, onProgress func(Progress), describe func(partial string) (string, int)) error {
 	args := []string{
 		"-p",
 		"--output-format", "stream-json",
@@ -269,10 +317,10 @@ func Analyze(ctx context.Context, prompt, model string, onProgress func(Progress
 	cmd.Stderr = &stderr
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
-		return Analysis{}, err
+		return err
 	}
 	if err := cmd.Start(); err != nil {
-		return Analysis{}, fmt.Errorf("não consegui iniciar o claude: %w", err)
+		return fmt.Errorf("não consegui iniciar o claude: %w", err)
 	}
 	onProgress(Progress{Stage: "starting", Message: "Abrindo o diff e lendo a descrição da PR..."})
 
@@ -304,38 +352,35 @@ func Analyze(ctx context.Context, prompt, model string, onProgress func(Progress
 				onProgress(Progress{Stage: "thinking", Message: tail(thinking.String(), 220), Files: seen})
 			case "input_json_delta":
 				partial.WriteString(d.PartialJSON)
-				matches := pathInJSON.FindAllStringSubmatch(partial.String(), -1)
-				if len(matches) > seen {
-					seen = len(matches)
-					onProgress(Progress{Stage: "writing", Message: "Explicando " + matches[seen-1][1], Files: seen})
+				if msg, n := describe(partial.String()); n > seen {
+					seen = n
+					onProgress(Progress{Stage: "writing", Message: msg, Files: seen})
 				}
 			}
 		}
 	}
 	waitErr := cmd.Wait()
 	if ctx.Err() != nil {
-		return Analysis{}, errors.New("análise cancelada")
+		return errors.New("análise cancelada")
 	}
 	if final == nil {
 		msg := strings.TrimSpace(stderr.String())
 		if msg == "" && waitErr != nil {
 			msg = waitErr.Error()
 		}
-		return Analysis{}, fmt.Errorf("o claude terminou sem resultado: %s", msg)
+		return fmt.Errorf("o claude terminou sem resultado: %s", msg)
 	}
 	if final.IsError {
-		return Analysis{}, fmt.Errorf("o claude retornou erro (%s): %s%s", final.Subtype, final.Result, loginHint(final.Result))
+		return fmt.Errorf("o claude retornou erro (%s): %s%s", final.Subtype, final.Result, loginHint(final.Result))
 	}
 	raw := final.StructuredOutput
 	if len(raw) == 0 || string(raw) == "null" {
 		raw = json.RawMessage(extractJSON(final.Result))
 	}
-	var a Analysis
-	if err := json.Unmarshal(raw, &a); err != nil {
-		return Analysis{}, fmt.Errorf("resposta do claude fora do formato esperado: %w", err)
+	if err := json.Unmarshal(raw, out); err != nil {
+		return fmt.Errorf("resposta do claude fora do formato esperado: %w", err)
 	}
-	onProgress(Progress{Stage: "done", Message: "Pronto!", Files: len(a.Files)})
-	return a, nil
+	return nil
 }
 
 // loginHint explica como resolver quando o Claude Code está instalado mas sem login: o app não tem como

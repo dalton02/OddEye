@@ -126,7 +126,7 @@ func (a *App) notifyNew(prs []gh.OpenPR) {
 	}
 }
 
-// preAnalyze roda a triagem em segundo plano para que abrir a PR pela notificação seja instantâneo.
+// preAnalyze roda a análise do modo padrão em segundo plano para que abrir a PR pela notificação seja instantâneo.
 // Uma de cada vez: cada análise é uma sessão do Claude Code na assinatura do usuário.
 func (a *App) preAnalyze(ref gh.PRRef) {
 	a.preAnalyzeMu.Lock()
@@ -145,27 +145,45 @@ func (a *App) preAnalyze(ref gh.PRRef) {
 		return
 	}
 	candidates, skipped := review.Split(files)
-	if _, _, err := a.analysis(a.ctx, ref, info, candidates, skipped, false, func(claude.Progress) {}); err != nil {
+	quiet := func(claude.Progress) {}
+	cfg, _ := a.store.Load()
+	if claude.ParseMode(cfg.DefaultMode) == claude.ModeArchitect {
+		tree := func() []string {
+			paths, _, _ := a.gh.Tree(a.ctx, ref, info.HeadRefOid)
+			return paths
+		}
+		_, _, err = a.blueprint(a.ctx, ref, info, candidates, skipped, tree, false, quiet)
+	} else {
+		_, _, err = a.analysis(a.ctx, ref, info, candidates, skipped, false, quiet)
+	}
+	if err != nil {
 		log.Printf("pré-análise de %s falhou: %v", ref, err)
 	}
 }
 
 type SettingsView struct {
-	Config        config.Config `json:"config"`
-	DefaultPrompt string        `json:"defaultPrompt"`
-	ConfigDir     string        `json:"configDir"`
+	Config                 config.Config `json:"config"`
+	DefaultPrompt          string        `json:"defaultPrompt"`
+	DefaultArchitectPrompt string        `json:"defaultArchitectPrompt"`
+	ConfigDir              string        `json:"configDir"`
 }
 
 func (a *App) GetSettings() (SettingsView, error) {
 	cfg, err := a.store.Load()
 	cfg.LaunchAtLogin = autostart.Enabled()
-	return SettingsView{Config: cfg, DefaultPrompt: claude.DefaultReviewerPrompt, ConfigDir: a.store.Dir()}, err
+	return SettingsView{
+		Config: cfg, DefaultPrompt: claude.DefaultReviewerPrompt,
+		DefaultArchitectPrompt: claude.DefaultArchitectPrompt, ConfigDir: a.store.Dir(),
+	}, err
 }
 
 // SaveSettings grava a configuração, aplica o autostart e dispara uma varredura com os repositórios novos.
 func (a *App) SaveSettings(cfg config.Config) (config.Config, error) {
 	if cfg.ReviewerPrompt == claude.DefaultReviewerPrompt {
 		cfg.ReviewerPrompt = "" // guarda vazio para acompanhar melhorias futuras do prompt padrão
+	}
+	if cfg.ArchitectPrompt == claude.DefaultArchitectPrompt {
+		cfg.ArchitectPrompt = ""
 	}
 	saved, err := a.store.Save(cfg)
 	if err != nil {

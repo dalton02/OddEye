@@ -36,7 +36,9 @@
   </header>
 
   <div class="scroll">
-    <h3>Selecionados pelo Claude <span>{session.files.length}</span></h3>
+    {#if session.mode === "code"}
+      <h3>Selecionados pelo Claude <span>{session.files.length}</span></h3>
+    {/if}
     {#each session.files as f, i (f.path)}
       <button class="item" class:active={activePath === f.path} onclick={() => onopen(f.path)}>
         <span class="num" class:seen={visited.has(f.path)}>{i + 1}</span>
@@ -52,7 +54,7 @@
     {/each}
 
     {#if session.others.length}
-      <h3>Outros alterados <span>{session.others.length}</span></h3>
+      <h3>{session.mode === "code" ? "Outros alterados" : "Arquivos alterados"} <span>{session.others.length}</span></h3>
       {#each session.others as f (f.path)}
         <button class="item" class:active={activePath === f.path} onclick={() => onopen(f.path)}>
           <span class="info">

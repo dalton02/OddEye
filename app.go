@@ -136,11 +136,16 @@ type SessionView struct {
 	Drafts     []review.Draft   `json:"drafts"`
 	FromCache  bool             `json:"fromCache"`
 	RepoFiles  []string         `json:"repoFiles"` // para o frontend transformar citações de arquivo em links
+	Mode       claude.Mode      `json:"mode"`
+	// Blueprint só vem no modo Arquiteto; nele Files fica vazio e todos os candidatos vão em Others.
+	Blueprint *claude.Blueprint `json:"blueprint"`
 }
 
-// LoadPR busca a PR, filtra testes e docs e pede a triagem ao Claude. A triagem fica em cache
-// por commit de head: reabrir a mesma PR sem commit novo não gasta outra análise.
-func (a *App) LoadPR(link string, forceRefresh bool) (*SessionView, error) {
+// LoadPR busca a PR, filtra testes e docs e pede a análise ao Claude no modo pedido ("code" ou
+// "architect"). A análise fica em cache por commit de head e por modo: reabrir a mesma PR sem commit
+// novo não gasta outra análise.
+func (a *App) LoadPR(link string, modeName string, forceRefresh bool) (*SessionView, error) {
+	mode := claude.ParseMode(modeName)
 	ref, err := gh.ParsePRURL(link)
 	if err != nil {
 		return nil, err
@@ -177,9 +182,27 @@ func (a *App) LoadPR(link string, forceRefresh bool) (*SessionView, error) {
 	candidates, skipped := review.Split(files)
 	emit(claude.Progress{Stage: "fetching", Message: fmt.Sprintf("%d arquivos na PR, %d sobraram depois de tirar testes e docs.", len(files), len(candidates))})
 
-	analysis, cached, err := a.analysis(ctx, ref, info, candidates, skipped, forceRefresh, emit)
-	if err != nil {
-		return nil, err
+	var (
+		analysis  claude.Analysis
+		blueprint *claude.Blueprint
+		cached    bool
+	)
+	if mode == claude.ModeArchitect {
+		tree := func() []string {
+			<-treeDone
+			return repoFiles
+		}
+		bp, hit, err := a.blueprint(ctx, ref, info, candidates, skipped, tree, forceRefresh, emit)
+		if err != nil {
+			return nil, err
+		}
+		blueprint, cached = &bp, hit
+		analysis.Summary = bp.Summary
+	} else {
+		analysis, cached, err = a.analysis(ctx, ref, info, candidates, skipped, forceRefresh, emit)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	drafts, err := review.NewDraftStore(ref)
@@ -204,6 +227,7 @@ func (a *App) LoadPR(link string, forceRefresh bool) (*SessionView, error) {
 		Additions: info.Additions, Deletions: info.Deletions, TotalFiles: len(files),
 		Summary: analysis.Summary, Files: []FileEntry{}, Others: []FileEntry{}, Skipped: skipped,
 		Drafts: drafts.List(), FromCache: cached, RepoFiles: repoFiles,
+		Mode: mode, Blueprint: blueprint,
 	}
 	if view.RepoFiles == nil {
 		view.RepoFiles = []string{}
@@ -236,8 +260,7 @@ func (a *App) LoadPR(link string, forceRefresh bool) (*SessionView, error) {
 }
 
 // analysis devolve a triagem do Claude para o commit atual da PR, do cache quando existe. A chave do
-// cache inclui o prompt e o modelo da configuração. Se a mesma análise já está rodando (pré-análise do
-// watcher), espera por ela em vez de gastar outra chamada ao Claude.
+// cache inclui o prompt e o modelo da configuração.
 func (a *App) analysis(ctx context.Context, ref gh.PRRef, info gh.PRInfo, candidates []gh.File, skipped []review.Skipped, forceRefresh bool, emit func(claude.Progress)) (claude.Analysis, bool, error) {
 	if len(candidates) == 0 {
 		return claude.Analysis{Summary: "Essa PR só mexe em testes, documentação ou arquivos gerados. Nada crítico para revisar por aqui!"}, false, nil
@@ -245,11 +268,48 @@ func (a *App) analysis(ctx context.Context, ref gh.PRRef, info gh.PRInfo, candid
 	cfg, _ := a.store.Load()
 	instructions := cfg.PromptFor(ref.Owner, ref.Repo)
 	model := claude.ResolveModel(cfg.Model)
-	key := cachePath(ref, info.HeadRefOid, claude.CacheKey(instructions, model))
+	key := cachePath(ref, info.HeadRefOid, claude.CacheKey(instructions, model), claude.ModeCode)
 
+	return cachedRun(a, ctx, key, forceRefresh, emit, func() (claude.Analysis, error) {
+		prompt := claude.BuildPrompt(info, candidates, skipped, instructions)
+		result, err := claude.Analyze(ctx, prompt, model, emit)
+		if err != nil {
+			return claude.Analysis{}, err
+		}
+		return claude.Sanitize(result, candidates), nil
+	})
+}
+
+// blueprint devolve a leitura de arquitetura da PR para o commit atual, do cache quando existe. tree
+// só é chamada quando a análise vai mesmo rodar, porque esperar a árvore do repositório custa uma ida
+// ao GitHub que o cache dispensa.
+func (a *App) blueprint(ctx context.Context, ref gh.PRRef, info gh.PRInfo, candidates []gh.File, skipped []review.Skipped, tree func() []string, forceRefresh bool, emit func(claude.Progress)) (claude.Blueprint, bool, error) {
+	if len(candidates) == 0 {
+		empty := claude.Blueprint{Summary: "Essa PR só mexe em testes, documentação ou arquivos gerados. Não há mudança de arquitetura para desenhar aqui."}
+		return claude.SanitizeBlueprint(empty, nil), false, nil
+	}
+	cfg, _ := a.store.Load()
+	model := claude.ResolveModel(cfg.Model)
+	key := cachePath(ref, info.HeadRefOid, claude.ArchitectCacheKey(cfg.ArchitectPrompt, model), claude.ModeArchitect)
+
+	return cachedRun(a, ctx, key, forceRefresh, emit, func() (claude.Blueprint, error) {
+		prompt := claude.BuildArchitectPrompt(info, candidates, skipped, tree(), cfg.ArchitectPrompt)
+		result, err := claude.AnalyzeArchitecture(ctx, prompt, model, emit)
+		if err != nil {
+			return claude.Blueprint{}, err
+		}
+		return claude.SanitizeBlueprint(result, candidates), nil
+	})
+}
+
+// cachedRun devolve o resultado guardado em key ou roda compute e guarda. Se a mesma análise já está
+// rodando (pré-análise do watcher), espera por ela em vez de gastar outra chamada ao Claude. O bool
+// diz se o resultado veio do cache.
+func cachedRun[T any](a *App, ctx context.Context, key string, forceRefresh bool, emit func(claude.Progress), compute func() (T, error)) (T, bool, error) {
+	var zero T
 	for {
 		if !forceRefresh {
-			if cached, ok := loadCachedAnalysis(key); ok {
+			if cached, ok := loadCached[T](key); ok {
 				return cached, true, nil
 			}
 		}
@@ -273,17 +333,15 @@ func (a *App) analysis(ctx context.Context, ref gh.PRRef, info gh.PRInfo, candid
 		case <-wait:
 			forceRefresh = false
 		case <-ctx.Done():
-			return claude.Analysis{}, false, errors.New("análise cancelada")
+			return zero, false, errors.New("análise cancelada")
 		}
 	}
 
-	prompt := claude.BuildPrompt(info, candidates, skipped, instructions)
-	result, err := claude.Analyze(ctx, prompt, model, emit)
+	result, err := compute()
 	if err != nil {
-		return claude.Analysis{}, false, err
+		return zero, false, err
 	}
-	result = claude.Sanitize(result, candidates)
-	saveCachedAnalysis(key, result)
+	saveCached(key, result)
 	return result, false, nil
 }
 
@@ -471,33 +529,39 @@ func (a *App) OpenURL(url string) {
 	runtime.BrowserOpenURL(a.ctx, url)
 }
 
-// cachePath identifica a análise pelo commit e pelo que muda o resultado (promptKey: instruções e modelo).
-// O sufixo de versão invalida o cache quando o formato da análise ou o contrato do prompt mudam.
-func cachePath(ref gh.PRRef, sha, promptKey string) string {
+// cachePath identifica a análise pelo commit, pelo modo e pelo que muda o resultado (promptKey:
+// instruções e modelo). O sufixo de versão de cada modo invalida o cache quando o formato da análise
+// ou o contrato do prompt daquele modo mudam.
+func cachePath(ref gh.PRRef, sha, promptKey string, mode claude.Mode) string {
 	dir, err := os.UserCacheDir()
 	if err != nil {
 		return ""
 	}
-	return filepath.Join(dir, appdir.Name, "analysis", fmt.Sprintf("%s_%s_%d_%s_%s.v3.json", ref.Owner, ref.Repo, ref.Number, sha, promptKey))
+	suffix := "v3"
+	if mode == claude.ModeArchitect {
+		suffix = "architect.v1"
+	}
+	return filepath.Join(dir, appdir.Name, "analysis", fmt.Sprintf("%s_%s_%d_%s_%s.%s.json", ref.Owner, ref.Repo, ref.Number, sha, promptKey, suffix))
 }
 
-func loadCachedAnalysis(p string) (claude.Analysis, bool) {
-	var a claude.Analysis
+func loadCached[T any](p string) (T, bool) {
+	var v T
 	if p == "" {
-		return a, false
+		return v, false
 	}
 	data, err := os.ReadFile(p)
-	if err != nil || json.Unmarshal(data, &a) != nil {
-		return a, false
+	if err != nil || json.Unmarshal(data, &v) != nil {
+		var zero T
+		return zero, false
 	}
-	return a, true
+	return v, true
 }
 
-func saveCachedAnalysis(p string, a claude.Analysis) {
+func saveCached[T any](p string, v T) {
 	if p == "" {
 		return
 	}
 	_ = os.MkdirAll(filepath.Dir(p), 0o755)
-	data, _ := json.Marshal(a)
+	data, _ := json.Marshal(v)
 	_ = os.WriteFile(p, data, 0o644)
 }

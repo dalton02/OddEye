@@ -47,3 +47,12 @@ func TestLoadDefaultsLaunchAtLoginOnFirstRun(t *testing.T) {
 		t.Errorf("depois de desligar e salvar, LaunchAtLogin deveria continuar desligado")
 	}
 }
+
+func TestNormalizeFallsBackToCodeMode(t *testing.T) {
+	if got := (Config{DefaultMode: "qualquer"}).Normalize().DefaultMode; got != ModeCode {
+		t.Errorf("DefaultMode inválido = %q", got)
+	}
+	if got := (Config{DefaultMode: ModeArchitect}).Normalize().DefaultMode; got != ModeArchitect {
+		t.Errorf("DefaultMode architect = %q", got)
+	}
+}

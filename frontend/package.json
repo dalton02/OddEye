@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "check": "svelte-check --tsconfig ./tsconfig.json",
-    "test": "bun tests/paths.test.ts"
+    "test": "bun tests/paths.test.ts && bun tests/layout.test.ts"
   },
   "dependencies": {
     "monaco-editor": "0.52.2"

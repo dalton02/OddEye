@@ -21,6 +21,13 @@ const (
 	MinPollMinutes     = 2
 )
 
+// Modos de revisor. Os valores são os mesmos de claude.Mode; ficam repetidos aqui para o pacote de
+// configuração não depender do pacote que roda o Claude.
+const (
+	ModeCode      = "code"
+	ModeArchitect = "architect"
+)
+
 type RepoConfig struct {
 	Owner               string `json:"owner"`
 	Name                string `json:"name"`
@@ -43,6 +50,9 @@ type Config struct {
 	SkippedVersion string `json:"skippedVersion"`
 	NotifyOwnPRs   bool   `json:"notifyOwnPRs"`
 	IncludeDrafts  bool   `json:"includeDrafts"`
+	// DefaultMode é o modo de revisor das PRs abertas pela bandeja e da pré-análise: "code" ou "architect".
+	DefaultMode     string `json:"defaultMode"`
+	ArchitectPrompt string `json:"architectPrompt"` // vazio = prompt padrão embutido do modo Arquiteto
 }
 
 // Normalize corrige valores fora da faixa e remove repositórios repetidos ou vazios.
@@ -66,6 +76,9 @@ func (c Config) Normalize() Config {
 	}
 	c.Repos = repos
 	c.Model = strings.TrimSpace(c.Model)
+	if c.DefaultMode != ModeArchitect {
+		c.DefaultMode = ModeCode
+	}
 	return c
 }
 

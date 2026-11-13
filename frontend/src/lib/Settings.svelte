@@ -12,6 +12,8 @@
   let defaultPrompt = $state("");
   let configDir = $state("");
   let prompt = $state("");
+  let defaultArchitectPrompt = $state("");
+  let architectPrompt = $state("");
   let error = $state("");
   let saving = $state(false);
   let saved = $state(false);
@@ -49,6 +51,8 @@
       defaultPrompt = s.defaultPrompt;
       configDir = s.configDir;
       prompt = s.config.reviewerPrompt || s.defaultPrompt;
+      defaultArchitectPrompt = s.defaultArchitectPrompt;
+      architectPrompt = s.config.architectPrompt || s.defaultArchitectPrompt;
     } catch (e) {
       error = errorMessage(e);
     }
@@ -102,7 +106,11 @@
     saving = true;
     error = "";
     try {
-      const toSave: Config = { ...config, reviewerPrompt: prompt.trim() === defaultPrompt.trim() ? "" : prompt };
+      const toSave: Config = {
+        ...config,
+        reviewerPrompt: prompt.trim() === defaultPrompt.trim() ? "" : prompt,
+        architectPrompt: architectPrompt.trim() === defaultArchitectPrompt.trim() ? "" : architectPrompt
+      };
       config = await api.saveSettings(toSave);
       saved = true;
       setTimeout(onclose, 600);
@@ -225,8 +233,15 @@
           <datalist id="models"><option value="sonnet"></option><option value="opus"></option><option value="haiku"></option></datalist>
         </label>
         <label class="stack">
+          <span>Modo padrão <small>(vale para PRs abertas pela bandeja e para a pré-análise)</small></span>
+          <select bind:value={config.defaultMode}>
+            <option value="code">Código: os arquivos críticos, com o código na tela</option>
+            <option value="architect">Arquiteto: a abordagem, os trade-offs e os diagramas</option>
+          </select>
+        </label>
+        <label class="stack">
           <span class="row">
-            Instruções do revisor
+            Instruções do modo Código
             <button class="link" onclick={() => (prompt = defaultPrompt)} disabled={prompt === defaultPrompt}>Restaurar padrão</button>
           </span>
           <textarea class="prompt" rows="12" bind:value={prompt} spellcheck="false"></textarea>
@@ -234,6 +249,19 @@
         <p class="muted small">
           Diga o que o revisor deve priorizar, o tom e o idioma. As regras de formato da resposta (caminhos, linhas,
           JSON) são do app e entram sempre, então nada aqui quebra o tour. Trocar as instruções gera uma análise nova.
+        </p>
+        <label class="stack">
+          <span class="row">
+            Instruções do modo Arquiteto
+            <button class="link" onclick={() => (architectPrompt = defaultArchitectPrompt)} disabled={architectPrompt === defaultArchitectPrompt}>
+              Restaurar padrão
+            </button>
+          </span>
+          <textarea class="prompt" rows="10" bind:value={architectPrompt} spellcheck="false"></textarea>
+        </label>
+        <p class="muted small">
+          O modo Arquiteto nunca cita função nem arquivo: essa regra e o formato dos diagramas são do app e entram sempre.
+          As instruções por repositório valem só para o modo Código.
         </p>
       </section>
 
