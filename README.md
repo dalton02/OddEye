@@ -1,9 +1,24 @@
-# Oddeye
+<p align="center">
+  <img src="frontend/src/assets/logo.png" alt="Logo do Oddeye: um alien com uma máscara de um olho só" width="180">
+</p>
 
-App desktop (Linux, Windows e macOS) que fica na bandeja do sistema vigiando os repositórios que você
-escolher. Quando chega uma pull request nova, ele avisa com uma notificação. Um clique abre o tour da PR
-com o Claude Code: o Claude escolhe só os arquivos críticos (sem testes nem documentação) e explica cada
-um. O código aparece no editor do VS Code (Monaco) e os seus comentários vão para o GitHub como review.
+<h1 align="center">Oddeye</h1>
+
+<p align="center">Um revisor de código que olha só o que importa na sua pull request.</p>
+
+Revisar PR toma tempo porque a maior parte do diff não precisa de atenção: testes, documentação, arquivos
+gerados, renomeações. O Oddeye existe para tirar esse peso do dev. Ele separa os poucos arquivos que
+realmente merecem revisão (regra de negócio, dinheiro, segurança, concorrência, contratos públicos, schema de
+banco) e explica cada um, para você gastar sua atenção onde um erro custaria caro.
+
+Como funciona:
+
+- **Vigia os seus repositórios.** O app fica na bandeja do sistema (Linux, Windows e macOS) e avisa com uma
+  notificação quando chega uma pull request nova.
+- **Faz a triagem com o Claude Code.** Um clique abre o tour da PR: o Claude escolhe só os arquivos críticos
+  e diz por que cada um importa e quais linhas olhar.
+- **Você revisa no mesmo lugar.** O código aparece no editor do VS Code (Monaco), você comenta nas linhas e
+  os comentários vão para o GitHub como review.
 
 Nada é publicado sem você: o review só sai quando você clica em **Enviar review** e escolhe Comentar,
 Aprovar ou Pedir mudanças.
