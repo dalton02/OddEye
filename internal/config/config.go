@@ -8,6 +8,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -36,6 +37,9 @@ type RepoConfig struct {
 	PromptOverride      string `json:"promptOverride"`
 }
 
+// Efforts são os níveis de esforço que o Claude Code aceita em --effort, do mais barato ao mais caro.
+var Efforts = []string{"low", "medium", "high", "xhigh", "max"}
+
 func (r RepoConfig) FullName() string { return r.Owner + "/" + r.Name }
 
 type Config struct {
@@ -43,6 +47,7 @@ type Config struct {
 	Repos               []RepoConfig `json:"repos"`
 	ReviewerPrompt      string       `json:"reviewerPrompt"` // vazio = prompt padrão embutido
 	Model               string       `json:"model"`          // vazio = padrão do Claude Code
+	Effort              string       `json:"effort"`         // esforço de raciocínio do Claude; vazio = padrão do Claude Code
 	LaunchAtLogin       bool         `json:"launchAtLogin"`
 	// AutostartNoticeSeen marca que o usuário já viu o aviso de que o app abre junto com o sistema.
 	AutostartNoticeSeen bool `json:"autostartNoticeSeen"`
@@ -76,6 +81,10 @@ func (c Config) Normalize() Config {
 	}
 	c.Repos = repos
 	c.Model = strings.TrimSpace(c.Model)
+	c.Effort = strings.ToLower(strings.TrimSpace(c.Effort))
+	if !slices.Contains(Efforts, c.Effort) {
+		c.Effort = ""
+	}
 	if c.DefaultMode != ModeArchitect {
 		c.DefaultMode = ModeCode
 	}

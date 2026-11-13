@@ -171,6 +171,15 @@ func CacheKey(instructions, model string) string {
 	return cacheKey(Instructions(instructions), model)
 }
 
+// ModelKey junta modelo e esforço na parte da chave de cache que identifica "quem analisou": mudar o
+// esforço refaz a análise. Sem esforço configurado a chave é a de antes, e o cache antigo continua valendo.
+func ModelKey(model, effort string) string {
+	if effort == "" {
+		return model
+	}
+	return model + "\x00effort=" + effort
+}
+
 func cacheKey(effective, model string) string {
 	sum := sha256.Sum256([]byte(effective + "\x00" + model))
 	return hex.EncodeToString(sum[:])[:12]
@@ -275,7 +284,7 @@ type streamEvent struct {
 var pathInJSON = regexp.MustCompile(`"path"\s*:\s*"([^"]+)"`)
 
 // Analyze roda o Claude e devolve a triagem. onProgress recebe atualizações do stream.
-func Analyze(ctx context.Context, prompt, model string, onProgress func(Progress)) (Analysis, error) {
+func Analyze(ctx context.Context, prompt, model, effort string, onProgress func(Progress)) (Analysis, error) {
 	var a Analysis
 	describe := func(partial string) (string, int) {
 		matches := pathInJSON.FindAllStringSubmatch(partial, -1)
@@ -284,7 +293,7 @@ func Analyze(ctx context.Context, prompt, model string, onProgress func(Progress
 		}
 		return "Explicando " + matches[len(matches)-1][1], len(matches)
 	}
-	if err := run(ctx, prompt, model, schema, &a, onProgress, describe); err != nil {
+	if err := run(ctx, prompt, model, effort, schema, &a, onProgress, describe); err != nil {
 		return Analysis{}, err
 	}
 	onProgress(Progress{Stage: "done", Message: "Pronto!", Files: len(a.Files)})
@@ -294,7 +303,7 @@ func Analyze(ctx context.Context, prompt, model string, onProgress func(Progress
 // run executa o Claude Code headless com o schema dado e decodifica a resposta em out. describe lê o
 // JSON parcial que o Claude já escreveu e devolve a mensagem de progresso e quantos itens estão prontos;
 // só vira evento quando a contagem avança.
-func run(ctx context.Context, prompt, model, schema string, out any, onProgress func(Progress), describe func(partial string) (string, int)) error {
+func run(ctx context.Context, prompt, model, effort, schema string, out any, onProgress func(Progress), describe func(partial string) (string, int)) error {
 	args := []string{
 		"-p",
 		"--output-format", "stream-json",
@@ -307,6 +316,9 @@ func run(ctx context.Context, prompt, model, schema string, out any, onProgress 
 	}
 	if m := ResolveModel(model); m != "" {
 		args = append(args, "--model", m)
+	}
+	if effort != "" {
+		args = append(args, "--effort", effort)
 	}
 	cmd := exec.CommandContext(ctx, "claude", args...)
 	proc.HideWindow(cmd)

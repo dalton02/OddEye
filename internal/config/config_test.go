@@ -56,3 +56,12 @@ func TestNormalizeFallsBackToCodeMode(t *testing.T) {
 		t.Errorf("DefaultMode architect = %q", got)
 	}
 }
+
+func TestNormalizeEffort(t *testing.T) {
+	cases := map[string]string{"": "", " High ": "high", "xhigh": "xhigh", "turbo": ""}
+	for in, want := range cases {
+		if got := (Config{Effort: in}).Normalize().Effort; got != want {
+			t.Errorf("Effort %q: got %q, want %q", in, got, want)
+		}
+	}
+}

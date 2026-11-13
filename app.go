@@ -275,11 +275,11 @@ func (a *App) analysis(ctx context.Context, ref gh.PRRef, info gh.PRInfo, candid
 	cfg, _ := a.store.Load()
 	instructions := cfg.PromptFor(ref.Owner, ref.Repo)
 	model := claude.ResolveModel(cfg.Model)
-	key := cachePath(ref, info.HeadRefOid, claude.CacheKey(instructions, model), claude.ModeCode)
+	key := cachePath(ref, info.HeadRefOid, claude.CacheKey(instructions, claude.ModelKey(model, cfg.Effort)), claude.ModeCode)
 
 	return cachedRun(a, ctx, key, forceRefresh, emit, func() (claude.Analysis, error) {
 		prompt := claude.BuildPrompt(info, candidates, skipped, instructions)
-		result, err := claude.Analyze(ctx, prompt, model, emit)
+		result, err := claude.Analyze(ctx, prompt, model, cfg.Effort, emit)
 		if err != nil {
 			return claude.Analysis{}, err
 		}
@@ -297,11 +297,11 @@ func (a *App) blueprint(ctx context.Context, ref gh.PRRef, info gh.PRInfo, candi
 	}
 	cfg, _ := a.store.Load()
 	model := claude.ResolveModel(cfg.Model)
-	key := cachePath(ref, info.HeadRefOid, claude.ArchitectCacheKey(cfg.ArchitectPrompt, model), claude.ModeArchitect)
+	key := cachePath(ref, info.HeadRefOid, claude.ArchitectCacheKey(cfg.ArchitectPrompt, claude.ModelKey(model, cfg.Effort)), claude.ModeArchitect)
 
 	return cachedRun(a, ctx, key, forceRefresh, emit, func() (claude.Blueprint, error) {
 		prompt := claude.BuildArchitectPrompt(info, candidates, skipped, tree(), cfg.ArchitectPrompt)
-		result, err := claude.AnalyzeArchitecture(ctx, prompt, model, emit)
+		result, err := claude.AnalyzeArchitecture(ctx, prompt, model, cfg.Effort, emit)
 		if err != nil {
 			return claude.Blueprint{}, err
 		}

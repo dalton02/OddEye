@@ -226,6 +226,8 @@ export interface Config {
   repos: RepoConfig[];
   reviewerPrompt: string;
   model: string;
+  /** esforço de raciocínio do Claude: "" (padrão do Claude Code), low, medium, high, xhigh ou max */
+  effort: string;
   launchAtLogin: boolean;
   autostartNoticeSeen: boolean;
   skippedVersion: string;

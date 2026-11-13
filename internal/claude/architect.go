@@ -383,7 +383,7 @@ var architectStages = []struct{ key, message string }{
 }
 
 // AnalyzeArchitecture roda o Claude no modo Arquiteto. O resultado ainda precisa do SanitizeBlueprint.
-func AnalyzeArchitecture(ctx context.Context, prompt, model string, onProgress func(Progress)) (Blueprint, error) {
+func AnalyzeArchitecture(ctx context.Context, prompt, model, effort string, onProgress func(Progress)) (Blueprint, error) {
 	var bp Blueprint
 	describe := func(partial string) (string, int) {
 		msg, n := "", 0
@@ -395,7 +395,7 @@ func AnalyzeArchitecture(ctx context.Context, prompt, model string, onProgress f
 		}
 		return msg, n
 	}
-	if err := run(ctx, prompt, model, architectSchema, &bp, onProgress, describe); err != nil {
+	if err := run(ctx, prompt, model, effort, architectSchema, &bp, onProgress, describe); err != nil {
 		return Blueprint{}, err
 	}
 	onProgress(Progress{Stage: "done", Message: "Pronto!"})

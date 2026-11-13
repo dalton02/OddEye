@@ -271,6 +271,20 @@
               <datalist id="models"><option value="sonnet"></option><option value="opus"></option><option value="haiku"></option></datalist>
             </label>
             <label class="stack">
+              <span class="label">Esforço do modelo (mais esforço analisa melhor, mas demora e gasta mais da sua assinatura)</span>
+              <span class="select">
+                <select class="field" bind:value={config.effort}>
+                  <option value="">Padrão do seu Claude Code</option>
+                  <option value="low">Baixo</option>
+                  <option value="medium">Médio</option>
+                  <option value="high">Alto</option>
+                  <option value="xhigh">Muito alto</option>
+                  <option value="max">Máximo</option>
+                </select>
+                {@render chevron()}
+              </span>
+            </label>
+            <label class="stack">
               <span class="label">Modo padrão (vale para PRs abertas pela bandeja e para a pré-análise)</span>
               <span class="select">
                 <select class="field" bind:value={config.defaultMode}>

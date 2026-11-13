@@ -356,6 +356,7 @@ export namespace config {
 	    repos: RepoConfig[];
 	    reviewerPrompt: string;
 	    model: string;
+	    effort: string;
 	    launchAtLogin: boolean;
 	    autostartNoticeSeen: boolean;
 	    skippedVersion: string;
@@ -374,6 +375,7 @@ export namespace config {
 	        this.repos = this.convertValues(source["repos"], RepoConfig);
 	        this.reviewerPrompt = source["reviewerPrompt"];
 	        this.model = source["model"];
+	        this.effort = source["effort"];
 	        this.launchAtLogin = source["launchAtLogin"];
 	        this.autostartNoticeSeen = source["autostartNoticeSeen"];
 	        this.skippedVersion = source["skippedVersion"];
