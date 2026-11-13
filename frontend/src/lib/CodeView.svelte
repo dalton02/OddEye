@@ -7,11 +7,12 @@
   interface Props {
     file: FileView;
     drafts: Draft[];
+    fullscreen?: boolean;
     onsavedraft: (d: DraftInput) => Promise<void>;
     onremovedraft: (id: string) => Promise<void>;
   }
 
-  let { file, drafts, onsavedraft, onremovedraft }: Props = $props();
+  let { file, drafts, fullscreen = false, onsavedraft, onremovedraft }: Props = $props();
 
   let container: HTMLDivElement;
   let editor: monaco.editor.IStandaloneCodeEditor | undefined = $state();
@@ -27,7 +28,7 @@
   }
 
   let zones: Zone[] = [];
-  let composer: { startLine: number; line: number; id: string; body: string } | null = null;
+  let composer: { startLine: number; line: number; id: string; body: string; refocus: boolean } | null = null;
   let baseDecorations: monaco.editor.IEditorDecorationsCollection | undefined;
   let hoverDecoration: monaco.editor.IEditorDecorationsCollection | undefined;
   let flashDecoration: monaco.editor.IEditorDecorationsCollection | undefined;
@@ -151,6 +152,7 @@
     baseDecorations?.set(decos);
 
     const target = f.attention[0]?.line ?? f.added[0] ?? 1;
+    ed.setPosition({ lineNumber: target, column: 1 });
     ed.revealLineInCenter(target, monaco.editor.ScrollType.Immediate);
     untrack(() => renderZones(drafts));
   });
@@ -159,6 +161,10 @@
     const d = drafts;
     if (editor) untrack(() => renderZones(d));
   });
+
+  export function focus(): void {
+    editor?.focus();
+  }
 
   export function revealLine(line: number): void {
     if (!editor) return;
@@ -175,7 +181,7 @@
   }
 
   function openComposer(startLine: number, line: number, id = "", body = ""): void {
-    composer = { startLine, line, id, body };
+    composer = { startLine, line, id, body, refocus: !!editor?.hasTextFocus() };
     renderZones(drafts);
   }
 
@@ -298,9 +304,11 @@
         oncancel: () => {
           composer = null;
           renderZones(drafts);
+          if (c.refocus) editor?.focus();
         },
         onsave: async (body: string) => {
           composer = null;
+          if (c.refocus) editor?.focus();
           await onsavedraft({ id: c.id, path: file.path, startLine: c.startLine, line: c.line, body });
         }
       });
@@ -308,7 +316,7 @@
   }
 </script>
 
-<div class="window">
+<div class="window" class:fullscreen>
   <div class="titlebar">
     <span class="lights"><i></i><i></i><i></i></span>
     <span class="path" title={file.path}>{file.path}</span>
@@ -343,6 +351,16 @@
     box-shadow:
       0 0 0 1px rgba(0, 0, 0, 0.6),
       0 30px 80px rgba(0, 0, 0, 0.65);
+    transition: border-color 0.15s;
+  }
+  .window:focus-within {
+    border-color: rgba(217, 119, 87, 0.55);
+  }
+  .window.fullscreen {
+    position: fixed;
+    inset: 0;
+    z-index: 35;
+    border-radius: 0;
   }
   .titlebar {
     display: flex;

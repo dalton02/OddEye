@@ -60,6 +60,7 @@
   let celebrate = $state("");
   let recent = $state<string[]>([]);
   let codeView: CodeView | undefined = $state();
+  let codeFullscreen = $state(false);
   let richText: RichText | undefined = $state();
   let showAttention = $state(false);
   /* de onde o usuário veio ao seguir um link de arquivo; undefined = não veio por link (null = visão geral) */
@@ -199,7 +200,7 @@
     if (activePath === null) {
       if (session.files.length === 0) return session.summary;
       const n = session.files.length;
-      return `${session.summary}\n\nDos ${session.totalFiles} arquivos, separei ${n} que merecem sua atenção. Use as setas para começar o tour.`;
+      return `${session.summary}\n\nDos ${session.totalFiles} arquivos, separei ${n} que merecem sua atenção. Use as setas (ou h/l) para começar o tour.`;
     }
     if (entry?.explanation) return entry.explanation;
     if (citedBy) return `Esse arquivo não foi alterado nesta PR. Eu citei ele em \`${citedBy.from}\`: ${citedBy.why}`;
@@ -330,7 +331,7 @@
       goChapter(delta);
       return;
     }
-    const base = inTour ? index : activePath === null ? -1 : -1;
+    const base = inTour ? index : -1;
     const target = base + delta;
     if (target < 0) {
       activePath = null;
@@ -380,20 +381,35 @@
     link = "";
   }
 
+  const TOUR_STEP: Record<string, -1 | 1> = { ArrowLeft: -1, h: -1, k: -1, ArrowRight: 1, l: 1, j: 1 };
+
+  $effect(() => {
+    if (!codeView) codeFullscreen = false;
+  });
+
   function onKey(e: KeyboardEvent): void {
-    if (phase !== "tour" || reviewOpen) return;
+    if (phase !== "tour" || reviewOpen || settingsOpen || updateInfo) return;
     const el = document.activeElement as HTMLElement | null;
-    const typingField = el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA") && !el.closest(".monaco-editor");
-    if (typingField) return;
-    const inEditor = !!el?.closest(".monaco-editor");
-    if ((e.key === "ArrowRight" || e.key === "ArrowLeft") && (e.altKey || !inEditor)) {
+    const editorFocused = !!el?.classList.contains("inputarea") && !!el.closest(".monaco-editor");
+    if (!editorFocused && (el?.tagName === "INPUT" || el?.tagName === "TEXTAREA")) return;
+    const inCode = editorFocused || codeFullscreen;
+    const step = TOUR_STEP[e.key];
+    if (step && !e.ctrlKey && !e.metaKey && (e.altKey || !inCode)) {
       e.preventDefault();
-      go(e.key === "ArrowRight" ? 1 : -1);
+      go(step);
+    } else if (e.key === "Enter" && codeView && (!el || el === document.body || editorFocused)) {
+      e.preventDefault();
+      codeFullscreen = true;
+      codeView.focus();
     } else if ((e.key === "c" || e.key === "C") && file && !e.ctrlKey && !e.metaKey) {
       e.preventDefault();
       codeView?.commentSelectionOrCursor();
     } else if (e.key === "Escape") {
-      drawerOpen = false;
+      if (drawerOpen) drawerOpen = false;
+      else if (inCode) {
+        codeFullscreen = false;
+        el?.blur();
+      }
     }
   }
 
@@ -631,7 +647,14 @@
         {:else if fileError}
           <div class="overview"><p class="error">{fileError}</p></div>
         {:else if file}
-          <CodeView bind:this={codeView} {file} {drafts} onsavedraft={saveDraft} onremovedraft={removeDraft} />
+          <CodeView
+            bind:this={codeView}
+            {file}
+            {drafts}
+            fullscreen={codeFullscreen}
+            onsavedraft={saveDraft}
+            onremovedraft={removeDraft}
+          />
         {:else}
           <div class="overview"><p class="empty">Carregando...</p></div>
         {/if}
@@ -685,7 +708,7 @@
         {/if}
       </span>
       <span class="hint">
-        {blueprint && activePath === null ? "← → andam pelos capítulos e pelos passos do fluxo" : "← → navegam · C comenta · Alt+← → dentro do código"}
+        {blueprint && activePath === null ? "← → ou hjkl andam pelos capítulos e pelos passos do fluxo" : "← → ou hjkl navegam · Enter abre o código em tela cheia, Esc sai · C comenta"}
       </span>
       <MusicPlayer />
       <button class="btn primary" onclick={() => (reviewOpen = true)}>

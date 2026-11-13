@@ -75,8 +75,10 @@ O Oddeye não guarda token nenhum: ele usa as ferramentas que você já tem loga
    O ícone ganha um ponto vermelho quando tem PR esperando, e o menu da bandeja lista as PRs.
 4. Clique na notificação, numa PR do menu ou na caixa de entrada da tela inicial para abrir o tour.
    Também dá para colar o link de qualquer PR (`https://github.com/org/repo/pull/123` ou `org/repo#123`).
-5. Use **← →** para navegar entre os arquivos. Clique no número da linha (ou selecione linhas e aperte
-   **C**) para comentar. Os comentários ficam como rascunho em disco até você clicar em **Enviar review**.
+5. Use **← →** (ou **h**/**l** e **j**/**k**, como no vim) para navegar entre os arquivos. **Enter** abre o
+   código em tela cheia para revisar linha a linha: ali **Alt+← →** troca de arquivo e **Esc** volta para a
+   navegação. Clique no número da linha (ou selecione linhas e aperte **C**) para comentar. Os comentários
+   ficam como rascunho em disco até você clicar em **Enviar review**.
 
 Na primeira varredura de um repositório recém-adicionado, as PRs que já estavam abertas são marcadas como
 vistas sem notificar, para não chegar uma enxurrada de avisos de uma vez. Para sair do app de verdade,
