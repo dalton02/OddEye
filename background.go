@@ -16,6 +16,7 @@ import (
 	"oddeye/internal/gh"
 	"oddeye/internal/menuentry"
 	"oddeye/internal/review"
+	"oddeye/internal/term"
 	"oddeye/internal/tray"
 	"oddeye/internal/watcher"
 )
@@ -33,6 +34,7 @@ const maxIndividualNotifications = 3
 
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
+	a.term = term.NewManager(func(name string, data ...any) { runtime.EventsEmit(ctx, name, data...) })
 	a.startNotifications()
 	a.tray = tray.Start(tray.Callbacks{
 		OnOpen:     a.showWindow,
@@ -69,6 +71,9 @@ func (a *App) shutdown(ctx context.Context) {
 	}
 	runtime.CleanupNotifications(ctx)
 	a.stopMusic()
+	if a.term != nil {
+		a.term.CloseAll()
+	}
 }
 
 func (a *App) startNotifications() {

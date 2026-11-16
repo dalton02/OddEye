@@ -198,3 +198,52 @@ func (s *Store) write(name string, v any) error {
 	}
 	return os.Rename(tmp, filepath.Join(s.dir, name))
 }
+
+// BoardPrefs é o projeto aberto na aba Board, as colunas escondidas nele e o último repositório usado
+// para criar card. Fica num
+// arquivo próprio (board.json) para a tela de Configurações, que regrava o config.json inteiro, não
+// apagar a escolha.
+type BoardPrefs struct {
+	Owner    string   `json:"owner"`
+	Number   int      `json:"number"`
+	LastRepo string   `json:"lastRepo"`
+	Hidden   []string `json:"hidden"` // opções do Status escondidas no board
+}
+
+func (s *Store) LoadBoard() (BoardPrefs, error) {
+	var b BoardPrefs
+	err := s.read("board.json", &b)
+	if b.Hidden == nil {
+		b.Hidden = []string{}
+	}
+	return b, err
+}
+
+func (s *Store) SaveBoard(b BoardPrefs) error {
+	b.Owner, b.LastRepo = strings.TrimSpace(b.Owner), strings.TrimSpace(b.LastRepo)
+	return s.write("board.json", b)
+}
+
+// CodingTab é uma aba da tela Coding: um Claude Code (Kind vazio) ou o shell do usuário ("shell") numa pasta.
+type CodingTab struct {
+	ID   string `json:"id"`
+	Dir  string `json:"dir"`
+	Kind string `json:"kind,omitempty"`
+}
+
+// CodingPrefs são as abas abertas na tela Coding (coding.json), para voltarem ao reabrir o app.
+type CodingPrefs struct {
+	Tabs   []CodingTab `json:"tabs"`
+	Active string      `json:"active"`
+}
+
+func (s *Store) LoadCoding() (CodingPrefs, error) {
+	var c CodingPrefs
+	err := s.read("coding.json", &c)
+	if c.Tabs == nil {
+		c.Tabs = []CodingTab{}
+	}
+	return c, err
+}
+
+func (s *Store) SaveCoding(c CodingPrefs) error { return s.write("coding.json", c) }

@@ -14,8 +14,9 @@ import (
 )
 
 // RequiredScopes são os escopos que o app usa: repo para ler PRs privadas e publicar reviews,
+// project para ler e mexer nos GitHub Projects da aba Board,
 // read:org para listar os repositórios das organizações do usuário.
-var RequiredScopes = []string{"repo", "read:org"}
+var RequiredScopes = []string{"repo", "read:org", "project"}
 
 var scopesLine = regexp.MustCompile(`Token scopes:\s*(.*)`)
 

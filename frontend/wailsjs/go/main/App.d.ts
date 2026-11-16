@@ -3,13 +3,15 @@
 import {torrent} from '../models';
 import {playlist} from '../models';
 import {audio} from '../models';
+import {config} from '../models';
 import {main} from '../models';
 import {music} from '../models';
 import {gh} from '../models';
 import {review} from '../models';
-import {config} from '../models';
 import {archive} from '../models';
+import {term} from '../models';
 import {watcher} from '../models';
+import {workspace} from '../models';
 
 export function AddArchiveItem(arg1:string,arg2:string):Promise<torrent.Info>;
 
@@ -20,6 +22,10 @@ export function AddTorrent(arg1:string):Promise<torrent.Info>;
 export function AudioStatus():Promise<audio.Status>;
 
 export function AuthorizeGitHub():Promise<void>;
+
+export function BoardPrefs():Promise<config.BoardPrefs>;
+
+export function BoardViewer():Promise<string>;
 
 export function CancelAnalysis():Promise<void>;
 
@@ -35,7 +41,15 @@ export function ChooseMusicFolder():Promise<music.Library>;
 
 export function ChooseTorrentFile():Promise<torrent.Info>;
 
+export function CodingPrefs():Promise<config.CodingPrefs>;
+
+export function CreateCard(arg1:gh.NewCard):Promise<gh.CreatedCard>;
+
+export function CreateIssueBranch(arg1:string,arg2:string,arg3:string,arg4:string):Promise<string>;
+
 export function CreatePlaylist(arg1:string):Promise<playlist.Playlist>;
+
+export function CreateSubIssue(arg1:string,arg2:string,arg3:string,arg4:string,arg5:string,arg6:string):Promise<gh.SubIssue>;
 
 export function DeletePlaylist(arg1:string):Promise<void>;
 
@@ -43,15 +57,23 @@ export function DownloadTrack(arg1:string,arg2:string,arg3:boolean):Promise<torr
 
 export function GetSettings():Promise<main.SettingsView>;
 
+export function HomeDir():Promise<string>;
+
 export function InstallUpdate():Promise<void>;
+
+export function IssueDetail(arg1:string):Promise<gh.IssueDetail>;
 
 export function ListMusic():Promise<music.Library>;
 
 export function ListPlaylists():Promise<Array<playlist.Playlist>>;
 
+export function ListProjects(arg1:string):Promise<Array<gh.ProjectSummary>>;
+
 export function ListRepos():Promise<Array<gh.Repo>>;
 
 export function ListTorrents():Promise<Array<torrent.Info>>;
+
+export function LoadBoard(arg1:string,arg2:number):Promise<gh.Board>;
 
 export function LoadPR(arg1:string,arg2:string,arg3:boolean):Promise<main.SessionView>;
 
@@ -71,6 +93,10 @@ export function PRDescription():Promise<string>;
 
 export function PendingUpdate():Promise<main.UpdateInfo>;
 
+export function PickFolder():Promise<string>;
+
+export function ProjectOwners():Promise<Array<string>>;
+
 export function RemoveDraft(arg1:string):Promise<Array<review.Draft>>;
 
 export function RemoveFromPlaylist(arg1:string,arg2:string):Promise<playlist.Playlist>;
@@ -79,18 +105,46 @@ export function RemoveTorrent(arg1:string,arg2:boolean):Promise<void>;
 
 export function RenamePlaylist(arg1:string,arg2:string):Promise<void>;
 
+export function SaveBoardPrefs(arg1:config.BoardPrefs):Promise<void>;
+
+export function SaveCodingPrefs(arg1:config.CodingPrefs):Promise<void>;
+
 export function SaveDraft(arg1:main.DraftInput):Promise<Array<review.Draft>>;
 
 export function SaveSettings(arg1:config.Config):Promise<config.Config>;
 
 export function SearchArchive(arg1:string,arg2:number):Promise<archive.Result>;
 
+export function SetAssignedToMe(arg1:string,arg2:boolean):Promise<void>;
+
+export function SetCardField(arg1:string,arg2:string,arg3:string,arg4:string):Promise<void>;
+
+export function SetIssueClosed(arg1:string,arg2:boolean):Promise<void>;
+
 export function SkipUpdate(arg1:string):Promise<void>;
 
 export function SubmitReview(arg1:string,arg2:string):Promise<string>;
+
+export function TermClose(arg1:string):Promise<void>;
+
+export function TermOpen(arg1:string,arg2:string,arg3:string,arg4:number,arg5:number):Promise<term.Snapshot>;
+
+export function TermResize(arg1:string,arg2:number,arg3:number):Promise<void>;
+
+export function TermWrite(arg1:string,arg2:string):Promise<void>;
 
 export function TorrentFiles(arg1:string):Promise<Array<torrent.File>>;
 
 export function Version():Promise<string>;
 
 export function WatcherState():Promise<watcher.Snapshot>;
+
+export function WsChanges(arg1:string):Promise<workspace.Changes>;
+
+export function WsFileDiff(arg1:string,arg2:string):Promise<workspace.FileDiff>;
+
+export function WsListDir(arg1:string,arg2:string):Promise<Array<workspace.Entry>>;
+
+export function WsReadFile(arg1:string,arg2:string):Promise<workspace.FileContent>;
+
+export function WsWriteFile(arg1:string,arg2:string,arg3:string):Promise<void>;

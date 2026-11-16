@@ -15,6 +15,9 @@
   import UpdateModal from "./lib/UpdateModal.svelte";
   import Setup from "./lib/Setup.svelte";
   import Projects from "./lib/Projects.svelte";
+  import Board from "./lib/Board.svelte";
+  import Coding from "./lib/coding/Coding.svelte";
+  import { nextHomeTab, shortcutFor, type HomeTab } from "./lib/coding/coding";
   import ArchitectView from "./lib/architect/ArchitectView.svelte";
   import { chaptersOf, narrate, ownerOf } from "./lib/architect/chapters";
   import { player } from "./lib/player.svelte";
@@ -151,6 +154,43 @@
   }
 
   const depsOk = $derived(!!deps && !deps.ghError && !deps.claudeError);
+
+  /* Aba da home: PRs abertas, o board do GitHub Projects ou as sessões do Claude Code (Coding).
+     Lembrada só neste computador. */
+  let homeTab = $state<HomeTab>(readHomeTab());
+
+  function readHomeTab(): HomeTab {
+    try {
+      const t = localStorage.getItem("oddeye.homeTab");
+      return t === "board" || t === "coding" ? t : "prs";
+    } catch {
+      return "prs";
+    }
+  }
+
+  /* Ctrl+Shift+Tab troca a aba da home (PRs → Board → Coding). Em captura, para valer também com o
+     foco no terminal ou no editor, que de outro jeito ficariam com a tecla. */
+  function onHomeKey(e: KeyboardEvent): void {
+    if (phase !== "home" || settingsOpen || player.libraryOpen || updateInfo) return;
+    if (shortcutFor(e) !== "home") return;
+    e.preventDefault();
+    e.stopPropagation();
+    switchHomeTab(nextHomeTab(homeTab));
+  }
+
+  onMount(() => {
+    window.addEventListener("keydown", onHomeKey, true);
+    return () => window.removeEventListener("keydown", onHomeKey, true);
+  });
+
+  function switchHomeTab(t: HomeTab): void {
+    homeTab = t;
+    try {
+      localStorage.setItem("oddeye.homeTab", t);
+    } catch {
+      /* sem armazenamento: a aba só não é lembrada */
+    }
+  }
 
   /* PRs abertas de cada repositório vigiado (um projeto por repo), listadas na tela inicial */
   let projects = $state<ProjectPRs[] | null>(null);
@@ -489,12 +529,18 @@
     </div>
   {/if}
   {#if phase === "home"}
-    <main class="home">
+    <main class="home" class:wide={homeTab !== "prs"} class:coding={homeTab === "coding"}>
       <div class="brand">
         <img class="logo" src={logo} width="44" height="44" alt="" />
         <h1>Oddeye</h1>
+        <div class="seg tabs" role="tablist" aria-label="Aba">
+          <button role="tab" class:on={homeTab === "prs"} aria-selected={homeTab === "prs"} onclick={() => switchHomeTab("prs")}>Pull requests</button>
+          <button role="tab" class:on={homeTab === "board"} aria-selected={homeTab === "board"} onclick={() => switchHomeTab("board")}>Board</button>
+          <button role="tab" class:on={homeTab === "coding"} aria-selected={homeTab === "coding"} onclick={() => switchHomeTab("coding")}>Coding</button>
+        </div>
       </div>
 
+      {#if homeTab === "prs"}
       <div class="start">
         <form
           class="search"
@@ -525,6 +571,7 @@
         </div>
         {#if error}<p class="error-text">{error}</p>{/if}
       </div>
+      {/if}
 
       {#if deps && (!depsOk || deps.missingScopes.length > 0)}
         <Setup {deps} onrecheck={recheckDeps} />
@@ -538,7 +585,13 @@
         </div>
       {/if}
 
-      {#if depsOk}
+      {#if homeTab === "coding"}
+        {#if deps && !deps.claudeError}
+          <Coding paused={settingsOpen || player.libraryOpen || !!updateInfo} />
+        {/if}
+      {:else if depsOk && homeTab === "board"}
+        <Board watchedRepos={projects?.map((p) => p.repo) ?? []} />
+      {:else if depsOk}
         <Projects
           {projects}
           loading={projectsLoading}
@@ -549,7 +602,7 @@
         />
       {/if}
 
-      {#if recent.length}
+      {#if recent.length && homeTab === "prs"}
         <div class="recent">
           <span>Recentes</span>
           {#each recent as r}
@@ -925,6 +978,31 @@
   /* a home lista as PRs dos projetos: mais larga para caber título, autor e os botões de modo */
   .home {
     width: min(1040px, 100%);
+  }
+  /* o board precisa da largura toda para as colunas */
+  /* Na aba Board a home ocupa a largura toda, mas o conteúdo fica na mesma coluna da aba de PRs
+     (--lane: 1040px menos o padding), para o logo e as abas não mudarem de lugar ao trocar de aba.
+     Só a faixa de colunas do kanban usa a largura toda. */
+  .home.wide {
+    --lane: calc(1040px - 2 * var(--sp-5));
+    width: 100%;
+  }
+  /* Coding: a janela de abas ocupa a largura e a altura que sobram, sem rolar a home */
+  .home.coding {
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+    gap: var(--sp-5);
+    padding-bottom: var(--sp-5);
+  }
+  .home.wide > .brand,
+  .home.wide > .notice,
+  .home.wide > :global(.setup) {
+    width: min(var(--lane), 100%);
+    margin-inline: auto;
+  }
+  .tabs {
+    margin-left: var(--sp-4);
   }
   .brand {
     display: flex;

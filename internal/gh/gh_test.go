@@ -27,12 +27,15 @@ func TestParsePRURL(t *testing.T) {
 }
 
 func TestParseMissingScopes(t *testing.T) {
-	full := "  - Token scopes: 'gist', 'read:org', 'repo', 'workflow'"
+	full := "  - Token scopes: 'gist', 'project', 'read:org', 'repo', 'workflow'"
 	if got := parseMissingScopes(full); len(got) != 0 {
 		t.Errorf("com todos os escopos = %v", got)
 	}
-	if got := parseMissingScopes("  - Token scopes: 'gist', 'repo'"); len(got) != 1 || got[0] != "read:org" {
+	if got := parseMissingScopes("  - Token scopes: 'gist', 'project', 'repo'"); len(got) != 1 || got[0] != "read:org" {
 		t.Errorf("sem read:org = %v", got)
+	}
+	if got := parseMissingScopes("  - Token scopes: 'read:org', 'repo'"); len(got) != 1 || got[0] != "project" {
+		t.Errorf("sem project = %v", got)
 	}
 	if got := parseMissingScopes("✓ Logged in to github.com (GH_TOKEN)"); got != nil {
 		t.Errorf("sem linha de escopos deveria ser nil, veio %v", got)

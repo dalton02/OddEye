@@ -22,6 +22,14 @@ export function AuthorizeGitHub() {
   return window['go']['main']['App']['AuthorizeGitHub']();
 }
 
+export function BoardPrefs() {
+  return window['go']['main']['App']['BoardPrefs']();
+}
+
+export function BoardViewer() {
+  return window['go']['main']['App']['BoardViewer']();
+}
+
 export function CancelAnalysis() {
   return window['go']['main']['App']['CancelAnalysis']();
 }
@@ -50,8 +58,24 @@ export function ChooseTorrentFile() {
   return window['go']['main']['App']['ChooseTorrentFile']();
 }
 
+export function CodingPrefs() {
+  return window['go']['main']['App']['CodingPrefs']();
+}
+
+export function CreateCard(arg1) {
+  return window['go']['main']['App']['CreateCard'](arg1);
+}
+
+export function CreateIssueBranch(arg1, arg2, arg3, arg4) {
+  return window['go']['main']['App']['CreateIssueBranch'](arg1, arg2, arg3, arg4);
+}
+
 export function CreatePlaylist(arg1) {
   return window['go']['main']['App']['CreatePlaylist'](arg1);
+}
+
+export function CreateSubIssue(arg1, arg2, arg3, arg4, arg5, arg6) {
+  return window['go']['main']['App']['CreateSubIssue'](arg1, arg2, arg3, arg4, arg5, arg6);
 }
 
 export function DeletePlaylist(arg1) {
@@ -66,8 +90,16 @@ export function GetSettings() {
   return window['go']['main']['App']['GetSettings']();
 }
 
+export function HomeDir() {
+  return window['go']['main']['App']['HomeDir']();
+}
+
 export function InstallUpdate() {
   return window['go']['main']['App']['InstallUpdate']();
+}
+
+export function IssueDetail(arg1) {
+  return window['go']['main']['App']['IssueDetail'](arg1);
 }
 
 export function ListMusic() {
@@ -78,12 +110,20 @@ export function ListPlaylists() {
   return window['go']['main']['App']['ListPlaylists']();
 }
 
+export function ListProjects(arg1) {
+  return window['go']['main']['App']['ListProjects'](arg1);
+}
+
 export function ListRepos() {
   return window['go']['main']['App']['ListRepos']();
 }
 
 export function ListTorrents() {
   return window['go']['main']['App']['ListTorrents']();
+}
+
+export function LoadBoard(arg1, arg2) {
+  return window['go']['main']['App']['LoadBoard'](arg1, arg2);
 }
 
 export function LoadPR(arg1, arg2, arg3) {
@@ -122,6 +162,14 @@ export function PendingUpdate() {
   return window['go']['main']['App']['PendingUpdate']();
 }
 
+export function PickFolder() {
+  return window['go']['main']['App']['PickFolder']();
+}
+
+export function ProjectOwners() {
+  return window['go']['main']['App']['ProjectOwners']();
+}
+
 export function RemoveDraft(arg1) {
   return window['go']['main']['App']['RemoveDraft'](arg1);
 }
@@ -138,6 +186,14 @@ export function RenamePlaylist(arg1, arg2) {
   return window['go']['main']['App']['RenamePlaylist'](arg1, arg2);
 }
 
+export function SaveBoardPrefs(arg1) {
+  return window['go']['main']['App']['SaveBoardPrefs'](arg1);
+}
+
+export function SaveCodingPrefs(arg1) {
+  return window['go']['main']['App']['SaveCodingPrefs'](arg1);
+}
+
 export function SaveDraft(arg1) {
   return window['go']['main']['App']['SaveDraft'](arg1);
 }
@@ -150,12 +206,40 @@ export function SearchArchive(arg1, arg2) {
   return window['go']['main']['App']['SearchArchive'](arg1, arg2);
 }
 
+export function SetAssignedToMe(arg1, arg2) {
+  return window['go']['main']['App']['SetAssignedToMe'](arg1, arg2);
+}
+
+export function SetCardField(arg1, arg2, arg3, arg4) {
+  return window['go']['main']['App']['SetCardField'](arg1, arg2, arg3, arg4);
+}
+
+export function SetIssueClosed(arg1, arg2) {
+  return window['go']['main']['App']['SetIssueClosed'](arg1, arg2);
+}
+
 export function SkipUpdate(arg1) {
   return window['go']['main']['App']['SkipUpdate'](arg1);
 }
 
 export function SubmitReview(arg1, arg2) {
   return window['go']['main']['App']['SubmitReview'](arg1, arg2);
+}
+
+export function TermClose(arg1) {
+  return window['go']['main']['App']['TermClose'](arg1);
+}
+
+export function TermOpen(arg1, arg2, arg3, arg4, arg5) {
+  return window['go']['main']['App']['TermOpen'](arg1, arg2, arg3, arg4, arg5);
+}
+
+export function TermResize(arg1, arg2, arg3) {
+  return window['go']['main']['App']['TermResize'](arg1, arg2, arg3);
+}
+
+export function TermWrite(arg1, arg2) {
+  return window['go']['main']['App']['TermWrite'](arg1, arg2);
 }
 
 export function TorrentFiles(arg1) {
@@ -168,4 +252,24 @@ export function Version() {
 
 export function WatcherState() {
   return window['go']['main']['App']['WatcherState']();
+}
+
+export function WsChanges(arg1) {
+  return window['go']['main']['App']['WsChanges'](arg1);
+}
+
+export function WsFileDiff(arg1, arg2) {
+  return window['go']['main']['App']['WsFileDiff'](arg1, arg2);
+}
+
+export function WsListDir(arg1, arg2) {
+  return window['go']['main']['App']['WsListDir'](arg1, arg2);
+}
+
+export function WsReadFile(arg1, arg2) {
+  return window['go']['main']['App']['WsReadFile'](arg1, arg2);
+}
+
+export function WsWriteFile(arg1, arg2, arg3) {
+  return window['go']['main']['App']['WsWriteFile'](arg1, arg2, arg3);
 }

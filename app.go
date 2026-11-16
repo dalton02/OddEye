@@ -23,6 +23,7 @@ import (
 	"oddeye/internal/music"
 	"oddeye/internal/playlist"
 	"oddeye/internal/review"
+	"oddeye/internal/term"
 	"oddeye/internal/torrent"
 	"oddeye/internal/tray"
 	"oddeye/internal/watcher"
@@ -39,6 +40,7 @@ type App struct {
 	torrents  *torrent.Engine // nil quando o motor não conseguiu iniciar
 	archive   *archive.Client
 
+	term    *term.Manager // terminais da aba Coding
 	watcher *watcher.Watcher
 	tray    *tray.Tray
 	version string

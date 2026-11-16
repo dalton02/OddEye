@@ -1,8 +1,74 @@
 import * as Go from "../../wailsjs/go/main/App";
 import { EventsOn } from "../../wailsjs/runtime/runtime";
 import type { Track, TorrentFile } from "./music";
+import type { Board, BoardCard } from "./board";
 
 export type { Track, TorrentFile } from "./music";
+
+export interface BoardPrefs {
+  owner: string;
+  number: number;
+  lastRepo: string;
+  hidden: string[];
+}
+
+export interface ProjectSummary {
+  id: string;
+  number: number;
+  title: string;
+  url: string;
+  public: boolean;
+  updatedAt: string;
+  items: number;
+}
+
+export interface NewCard {
+  projectId: string;
+  repo: string;
+  title: string;
+  body: string;
+  assignMe: boolean;
+  statusFieldId: string;
+  statusOptionId: string;
+  typeFieldId: string;
+  typeOptionId: string;
+}
+
+export interface CreatedCard {
+  card: BoardCard;
+  warning: string;
+}
+
+export interface SubIssue {
+  id: string;
+  number: number;
+  title: string;
+  state: string;
+  url: string;
+}
+
+export interface BranchRef {
+  name: string;
+  oid: string;
+}
+
+export interface IssueDetail {
+  id: string;
+  number: number;
+  title: string;
+  body: string;
+  url: string;
+  state: string;
+  repo: string;
+  repoId: string;
+  defaultBranch: string;
+  assignees: string[];
+  /** a issue mãe, quando esta é uma sub-issue */
+  parent: SubIssue | null;
+  subIssues: SubIssue[];
+  linked: string[];
+  branches: BranchRef[];
+}
 
 export type Severity = "critical" | "high" | "medium" | "";
 
@@ -310,6 +376,66 @@ export interface DeviceCode {
 }
 
 /* As bindings geradas pelo Wails usam classes com conversores; aqui só precisamos da forma JSON. */
+/** claude: uma sessão do Claude Code; shell: o shell do usuário, como o Konsole abre */
+export type TermKind = "claude" | "shell";
+
+export interface CodingTab {
+  id: string;
+  dir: string;
+  kind?: TermKind;
+}
+
+export interface CodingPrefs {
+  tabs: CodingTab[];
+  active: string;
+}
+
+/** estado do terminal ao abrir: a saída guardada (base64) até seq */
+export interface TermSnapshot {
+  seq: number;
+  scrollback: string;
+  started: boolean;
+}
+
+export interface TermChunk {
+  seq: number;
+  data: string;
+}
+
+export interface WsEntry {
+  name: string;
+  path: string;
+  dir: boolean;
+  ignored: boolean;
+}
+
+export interface WsFile {
+  content: string;
+  binary: boolean;
+  tooBig: boolean;
+}
+
+export type WsStatus = "M" | "A" | "D" | "R" | "U";
+
+export interface WsChange {
+  path: string;
+  status: WsStatus;
+  added: number;
+  removed: number;
+}
+
+export interface WsChanges {
+  isRepo: boolean;
+  branch: string;
+  files: WsChange[];
+}
+
+export interface WsDiff {
+  original: string;
+  modified: string;
+  binary: boolean;
+}
+
 export const api = {
   checkDeps: (): Promise<Deps> => Go.CheckDeps() as unknown as Promise<Deps>,
   loadPR: (url: string, mode: Mode, force: boolean): Promise<Session> =>
@@ -357,6 +483,42 @@ export const api = {
   onOpenPR: (cb: (ref: string) => void): (() => void) => EventsOn("pr:open", cb),
   onShowSettings: (cb: () => void): (() => void) => EventsOn("ui:settings", cb),
   onDeviceCode: (cb: (d: DeviceCode) => void): (() => void) => EventsOn("gh:device-code", cb),
+
+  boardPrefs: (): Promise<BoardPrefs> => Go.BoardPrefs() as unknown as Promise<BoardPrefs>,
+  saveBoardPrefs: (p: BoardPrefs): Promise<void> => Go.SaveBoardPrefs(p as unknown as Parameters<typeof Go.SaveBoardPrefs>[0]),
+  boardViewer: (): Promise<string> => Go.BoardViewer(),
+  projectOwners: (): Promise<string[]> => Go.ProjectOwners(),
+  listProjects: (owner: string): Promise<ProjectSummary[]> => Go.ListProjects(owner) as unknown as Promise<ProjectSummary[]>,
+  loadBoard: (owner: string, number: number): Promise<Board> => Go.LoadBoard(owner, number) as unknown as Promise<Board>,
+  /** muda Status ou tipo de um card; optionId vazio limpa o campo */
+  setCardField: (projectId: string, itemId: string, fieldId: string, optionId: string): Promise<void> =>
+    Go.SetCardField(projectId, itemId, fieldId, optionId),
+  createCard: (c: NewCard): Promise<CreatedCard> =>
+    Go.CreateCard(c as unknown as Parameters<typeof Go.CreateCard>[0]) as unknown as Promise<CreatedCard>,
+  issueDetail: (id: string): Promise<IssueDetail> => Go.IssueDetail(id) as unknown as Promise<IssueDetail>,
+  createSubIssue: (projectId: string, parentId: string, repo: string, title: string, statusFieldId: string, statusOptionId: string): Promise<SubIssue> =>
+    Go.CreateSubIssue(projectId, parentId, repo, title, statusFieldId, statusOptionId) as unknown as Promise<SubIssue>,
+  setIssueClosed: (id: string, closed: boolean): Promise<void> => Go.SetIssueClosed(id, closed),
+  setAssignedToMe: (id: string, assign: boolean): Promise<void> => Go.SetAssignedToMe(id, assign),
+  createIssueBranch: (issueId: string, repoId: string, name: string, baseOid: string): Promise<string> =>
+    Go.CreateIssueBranch(issueId, repoId, name, baseOid),
+
+  codingPrefs: (): Promise<CodingPrefs> => Go.CodingPrefs() as unknown as Promise<CodingPrefs>,
+  saveCodingPrefs: (p: CodingPrefs): Promise<void> => Go.SaveCodingPrefs(p as unknown as Parameters<typeof Go.SaveCodingPrefs>[0]),
+  pickFolder: (): Promise<string> => Go.PickFolder(),
+  homeDir: (): Promise<string> => Go.HomeDir(),
+  termOpen: (id: string, dir: string, kind: TermKind, cols: number, rows: number): Promise<TermSnapshot> =>
+    Go.TermOpen(id, dir, kind, cols, rows) as unknown as Promise<TermSnapshot>,
+  termWrite: (id: string, data: string): Promise<void> => Go.TermWrite(id, data),
+  termResize: (id: string, cols: number, rows: number): Promise<void> => Go.TermResize(id, cols, rows),
+  termClose: (id: string): Promise<void> => Go.TermClose(id),
+  onTermData: (id: string, cb: (c: TermChunk) => void): (() => void) => EventsOn("term:data:" + id, cb),
+  onTermExit: (id: string, cb: () => void): (() => void) => EventsOn("term:exit:" + id, cb),
+  wsListDir: (root: string, rel: string): Promise<WsEntry[]> => Go.WsListDir(root, rel) as unknown as Promise<WsEntry[]>,
+  wsReadFile: (root: string, rel: string): Promise<WsFile> => Go.WsReadFile(root, rel) as unknown as Promise<WsFile>,
+  wsWriteFile: (root: string, rel: string, content: string): Promise<void> => Go.WsWriteFile(root, rel, content),
+  wsChanges: (root: string): Promise<WsChanges> => Go.WsChanges(root) as unknown as Promise<WsChanges>,
+  wsFileDiff: (root: string, rel: string): Promise<WsDiff> => Go.WsFileDiff(root, rel) as unknown as Promise<WsDiff>,
 
   version: (): Promise<string> => Go.Version(),
   checkUpdate: (): Promise<UpdateInfo | null> => Go.CheckUpdate() as unknown as Promise<UpdateInfo | null>,

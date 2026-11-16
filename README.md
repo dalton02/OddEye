@@ -61,7 +61,8 @@ O Oddeye não guarda token nenhum: ele usa as ferramentas que você já tem loga
 
 - [GitHub CLI](https://cli.github.com) (`gh`). Se não estiver logado, o próprio app faz o login: ele mostra
   um código, abre a página do GitHub e você só confirma. O app pede os escopos `repo` (ler PRs, inclusive
-  privadas, e publicar reviews) e `read:org` (listar os repositórios das suas organizações).
+  privadas, e publicar reviews), `read:org` (listar os repositórios das suas organizações) e `project` (ler e mexer nos
+  GitHub Projects da aba Board).
 - [Claude Code](https://claude.com/claude-code) (`claude`) instalado e logado. O revisor roda no seu
   Claude Code em modo headless (`claude -p`), usando o seu plano: não precisa de chave de API. Se o
   Claude ainda não tiver login, abra `claude` no terminal uma vez e faça `/login`.
